@@ -38,6 +38,7 @@ struct modeset_dev {
 
 struct options {
         const char *card;
+        int connector;
 };
 
 static void *xmalloc(size_t size)
@@ -241,7 +242,34 @@ static int modeset_open(int *out, const char *node)
         return 0;
 }
 
-static struct modeset_dev *modeset_prepare_dev(int fd)
+static drmModeConnector *get_connector(int fd, drmModeRes *res,
+                                       int connector_id)
+{
+        drmModeConnector *conn;
+        int i;
+
+        for (i = 0; i < res->count_connectors; i++) {
+                conn = drmModeGetConnector(fd, res->connectors[i]);
+
+                if (conn == NULL) {
+                        fprintf(stderr,
+                                "cannot retrieve DRM connector "
+                                "%u:%u (%d): %m\n",
+                                i, res->connectors[i], errno);
+                        return NULL;
+                }
+
+                if (connector_id == -1 || conn->connector_id == connector_id)
+                        return conn;
+                drmModeFreeConnector(conn);
+        }
+
+        fprintf(stderr, "couldn't find connector with id %i\n", connector_id);
+
+        return NULL;
+}
+
+static struct modeset_dev *modeset_prepare_dev(int fd, int connector)
 {
         drmModeRes *res;
         drmModeConnector *conn;
@@ -256,19 +284,9 @@ static struct modeset_dev *modeset_prepare_dev(int fd)
                 goto error;
         }
 
-        if (res->count_connectors == 0) {
-                fprintf(stderr, "No connectors found\n");
+        conn = get_connector(fd, res, connector);
+        if (!conn)
                 goto error_resources;
-        }
-
-        /* Use the first connector */
-        conn = drmModeGetConnector(fd, res->connectors[0]);
-        if (!conn) {
-                fprintf(stderr,
-                        "cannot retrieve DRM connector %u:%u (%d): %m\n",
-                        0, res->connectors[0], errno);
-                goto error_resources;
-        }
 
         /* create a device structure */
         dev = xmalloc(sizeof(*dev));
@@ -379,16 +397,19 @@ static void usage(void)
         printf("usage: stereo-cube [OPTION]...\n"
                "\n"
                "  -h              Show this help message\n"
-               "  -d <DEV>        Set the dri device to open\n");
+               "  -d <DEV>        Set the dri device to open\n"
+               "  -c <CONNECTOR>  Use the given connector\n");
         exit(0);
 }
 
 static int process_options(struct options *options, int argc, char **argv)
 {
-        static const char args[] = "-hd:";
+        static const char args[] = "-hd:c:";
         int opt;
 
         memset(options, 0, sizeof(*options));
+
+        options->connector = -1;
 
         while ((opt = getopt(argc, argv, args)) != -1) {
                 switch (opt) {
@@ -397,6 +418,9 @@ static int process_options(struct options *options, int argc, char **argv)
                         break;
                 case 'd':
                         options->card = optarg;
+                        break;
+                case 'c':
+                        options->connector = atoi(optarg);
                         break;
                 case '?':
                 case ':':
@@ -429,7 +453,7 @@ int main(int argc, char **argv)
                 goto out_return;
 
         /* prepare all connectors and CRTCs */
-        dev = modeset_prepare_dev(fd);
+        dev = modeset_prepare_dev(fd, options.connector);
         if (dev == NULL)
                 goto out_close;
 
