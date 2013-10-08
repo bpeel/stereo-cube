@@ -22,7 +22,9 @@
 #include <xf86drmMode.h>
 #include <gbm.h>
 #include <EGL/egl.h>
-#include <GLES2/gl2.h>
+
+#include "stereo-renderer.h"
+#include "util.h"
 
 struct stereo_dev {
         int fd;
@@ -55,16 +57,6 @@ struct options {
         const char *card;
         int connector;
 };
-
-static void *xmalloc(size_t size)
-{
-        void *res = malloc(size);
-
-        if (res)
-                return res;
-
-        abort();
-}
 
 static int stereo_find_crtc(drmModeRes *res, drmModeConnector *conn,
                             struct stereo_dev *dev)
@@ -592,13 +584,28 @@ static void swap(struct stereo_context *context)
 
 static void draw(struct stereo_context *context)
 {
+        struct stereo_renderer *renderer = stereo_renderer_new();
+        struct gbm_box box;
+        struct stereo_renderer_box left_box, right_box;
         int i;
 
+        gbm_surface_get_left_box(context->gbm_surface, &box);
+        left_box.x = box.x;
+        left_box.y = box.y;
+        left_box.width = box.width;
+        left_box.height = box.height;
+        gbm_surface_get_right_box(context->gbm_surface, &box);
+        right_box.x = box.x;
+        right_box.y = box.y;
+        right_box.width = box.width;
+        right_box.height = box.height;
+
         for (i = 0; i < 256; i++) {
-                glClearColor(1.0f - i / 255.0f, 0.0, 0.0, 0.0);
-                glClear(GL_COLOR_BUFFER_BIT);
+                stereo_renderer_draw_frame(renderer, &left_box, &right_box, i);
                 swap(context);
         }
+
+        stereo_renderer_free(renderer);
 }
 
 static void usage(void)
