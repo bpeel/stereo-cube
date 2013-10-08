@@ -36,6 +36,10 @@ struct modeset_dev {
         drmModeCrtc *saved_crtc;
 };
 
+struct options {
+        const char *card;
+};
+
 static void *xmalloc(size_t size)
 {
         void *res = malloc(size);
@@ -370,22 +374,57 @@ static void modeset_cleanup(int fd, struct modeset_dev *dev)
         free(dev);
 }
 
+static void usage(void)
+{
+        printf("usage: stereo-cube [OPTION]...\n"
+               "\n"
+               "  -h              Show this help message\n"
+               "  -d <DEV>        Set the dri device to open\n");
+        exit(0);
+}
+
+static int process_options(struct options *options, int argc, char **argv)
+{
+        static const char args[] = "-hd:";
+        int opt;
+
+        memset(options, 0, sizeof(*options));
+
+        while ((opt = getopt(argc, argv, args)) != -1) {
+                switch (opt) {
+                case 'h':
+                        usage();
+                        break;
+                case 'd':
+                        options->card = optarg;
+                        break;
+                case '?':
+                case ':':
+                        return -ENOENT;
+                case '\1':
+                        fprintf(stderr, "unexpected argument \"%s\"\n", optarg);
+                        return -ENOENT;
+                }
+        }
+
+        if (options->card == NULL)
+                options->card = "/dev/dri/card0";
+
+        return 0;
+}
+
 int main(int argc, char **argv)
 {
         int ret, fd;
-        const char *card;
+        struct options options;
         struct modeset_dev *dev;
 
-        /* check which DRM device to open */
-        if (argc > 1)
-                card = argv[1];
-        else
-                card = "/dev/dri/card0";
-
-        fprintf(stderr, "using card '%s'\n", card);
+        ret = process_options(&options, argc, argv);
+        if (ret)
+                goto out_return;
 
         /* open the DRM device */
-        ret = modeset_open(&fd, card);
+        ret = modeset_open(&fd, options.card);
         if (ret)
                 goto out_return;
 
@@ -416,11 +455,5 @@ out_dev:
 out_close:
         close(fd);
 out_return:
-        if (ret) {
-                errno = -ret;
-                fprintf(stderr, "modeset failed with error %d: %m\n", errno);
-        } else {
-                fprintf(stderr, "exiting\n");
-        }
-        return ret;
+        return ret ? EXIT_FAILURE : EXIT_SUCCESS;
 }
