@@ -56,6 +56,7 @@ struct stereo_context {
 struct options {
         const char *card;
         int connector;
+        int use_3d;
 };
 
 static int stereo_find_crtc(drmModeRes *res, drmModeConnector *conn,
@@ -112,7 +113,35 @@ static int stereo_find_crtc(drmModeRes *res, drmModeConnector *conn,
         return -ENOENT;
 }
 
+static int is_3d_mode(const drmModeModeInfo *mode)
+{
+        switch ((mode->flags & DRM_MODE_FLAG_3D_MASK)) {
+        case DRM_MODE_FLAG_3D_TOP_AND_BOTTOM:
+        case DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF:
+        case DRM_MODE_FLAG_3D_FRAME_PACKING:
+                return 1;
+        default:
+                return 0;
+        }
+}
+
+static int find_mode(struct stereo_dev *dev, drmModeConnector *conn,
+                     const struct options *options)
+{
+        int i;
+
+        for (i = 0; i < conn->count_modes; i++) {
+                if (!options->use_3d || is_3d_mode(conn->modes + i)) {
+                        dev->mode = conn->modes[i];
+                        return 0;
+                }
+        }
+
+        return -ENOENT;
+}
+
 static int stereo_setup_dev(drmModeRes *res, drmModeConnector *conn,
+                            const struct options *options,
                             struct stereo_dev *dev)
 {
         int ret;
@@ -124,17 +153,16 @@ static int stereo_setup_dev(drmModeRes *res, drmModeConnector *conn,
                 return -ENOENT;
         }
 
-        /* check if there is at least one valid mode */
-        if (conn->count_modes == 0) {
+        ret = find_mode(dev, conn, options);
+        if (ret) {
                 fprintf(stderr, "no valid mode for connector %u\n",
                         conn->connector_id);
-                return -EFAULT;
+                return ret;
         }
 
         /* copy the mode information into our device structure */
-        memcpy(&dev->mode, &conn->modes[0], sizeof(dev->mode));
-        dev->width = conn->modes[0].hdisplay;
-        dev->height = conn->modes[0].vdisplay;
+        dev->width = dev->mode.hdisplay;
+        dev->height = dev->mode.vdisplay;
         fprintf(stderr, "mode for connector %u is %ux%u\n",
                 conn->connector_id, dev->width, dev->height);
 
@@ -149,25 +177,22 @@ static int stereo_setup_dev(drmModeRes *res, drmModeConnector *conn,
         return 0;
 }
 
-static int stereo_open(int *out, const char *node)
+static int stereo_open(int *out, const struct options *options)
 {
         int fd, ret;
-        uint64_t has_dumb;
 
-        fd = open(node, O_RDWR | O_CLOEXEC);
+        fd = open(options->card, O_RDWR | O_CLOEXEC);
         if (fd < 0) {
                 ret = -errno;
-                fprintf(stderr, "cannot open '%s': %m\n", node);
+                fprintf(stderr, "cannot open '%s': %m\n", options->card);
                 return ret;
         }
 
-        if (drmGetCap(fd, DRM_CAP_DUMB_BUFFER, &has_dumb) < 0 ||
-            !has_dumb) {
-                fprintf(stderr,
-                        "drm device '%s' does not support dumb buffers\n",
-                        node);
+        if (options->use_3d &&
+            drmSetClientCap(fd, DRM_CLIENT_CAP_STEREO_3D, 1)) {
+                fprintf(stderr, "error setting stereo client cap: %m\n");
                 close(fd);
-                return -EOPNOTSUPP;
+                return -errno;
         }
 
         *out = fd;
@@ -175,7 +200,7 @@ static int stereo_open(int *out, const char *node)
 }
 
 static drmModeConnector *get_connector(int fd, drmModeRes *res,
-                                       int connector_id)
+                                       const struct options *options)
 {
         drmModeConnector *conn;
         int i;
@@ -191,17 +216,21 @@ static drmModeConnector *get_connector(int fd, drmModeRes *res,
                         return NULL;
                 }
 
-                if (connector_id == -1 || conn->connector_id == connector_id)
+                if (options->connector == -1 ||
+                    conn->connector_id == options->connector)
                         return conn;
                 drmModeFreeConnector(conn);
         }
 
-        fprintf(stderr, "couldn't find connector with id %i\n", connector_id);
+        fprintf(stderr,
+                "couldn't find connector with id %i\n",
+                options->connector);
 
         return NULL;
 }
 
-static struct stereo_dev *stereo_prepare_dev(int fd, int connector)
+static struct stereo_dev *stereo_prepare_dev(int fd,
+                                             const struct options *options)
 {
         drmModeRes *res;
         drmModeConnector *conn;
@@ -216,7 +245,7 @@ static struct stereo_dev *stereo_prepare_dev(int fd, int connector)
                 goto error;
         }
 
-        conn = get_connector(fd, res, connector);
+        conn = get_connector(fd, res, options);
         if (!conn)
                 goto error_resources;
 
@@ -227,7 +256,7 @@ static struct stereo_dev *stereo_prepare_dev(int fd, int connector)
         dev->fd = fd;
 
         /* call helper function to prepare this connector */
-        ret = stereo_setup_dev(res, conn, dev);
+        ret = stereo_setup_dev(res, conn, options, dev);
         if (ret) {
                 if (ret != -ENOENT) {
                         errno = -ret;
@@ -614,13 +643,14 @@ static void usage(void)
                "\n"
                "  -h              Show this help message\n"
                "  -d <DEV>        Set the dri device to open\n"
-               "  -c <CONNECTOR>  Use the given connector\n");
+               "  -c <CONNECTOR>  Use the given connector\n"
+               "  -3              Use a stereoscopic mode\n");
         exit(0);
 }
 
 static int process_options(struct options *options, int argc, char **argv)
 {
-        static const char args[] = "-hd:c:";
+        static const char args[] = "-hd:c:3";
         int opt;
 
         memset(options, 0, sizeof(*options));
@@ -637,6 +667,9 @@ static int process_options(struct options *options, int argc, char **argv)
                         break;
                 case 'c':
                         options->connector = atoi(optarg);
+                        break;
+                case '3':
+                        options->use_3d = 1;
                         break;
                 case '?':
                 case ':':
@@ -665,12 +698,12 @@ int main(int argc, char **argv)
                 goto out_return;
 
         /* open the DRM device */
-        ret = stereo_open(&fd, options.card);
+        ret = stereo_open(&fd, &options);
         if (ret)
                 goto out_return;
 
         /* prepare all connectors and CRTCs */
-        dev = stereo_prepare_dev(fd, options.connector);
+        dev = stereo_prepare_dev(fd, &options);
         if (dev == NULL) {
                 ret = -ENOENT;
                 goto out_close;
