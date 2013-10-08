@@ -21,7 +21,7 @@
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 
-struct modeset_dev {
+struct stereo_dev {
         uint32_t width;
         uint32_t height;
         uint32_t stride;
@@ -51,8 +51,8 @@ static void *xmalloc(size_t size)
         abort();
 }
 
-static int modeset_find_crtc(int fd, drmModeRes *res, drmModeConnector *conn,
-                             struct modeset_dev *dev)
+static int stereo_find_crtc(int fd, drmModeRes *res, drmModeConnector *conn,
+                            struct stereo_dev *dev)
 {
         drmModeEncoder *enc;
         unsigned int i, j;
@@ -105,7 +105,7 @@ static int modeset_find_crtc(int fd, drmModeRes *res, drmModeConnector *conn,
         return -ENOENT;
 }
 
-static int modeset_create_fb(int fd, struct modeset_dev *dev)
+static int stereo_create_fb(int fd, struct stereo_dev *dev)
 {
         struct drm_mode_create_dumb creq;
         struct drm_mode_destroy_dumb dreq;
@@ -172,8 +172,8 @@ err_destroy:
         return ret;
 }
 
-static int modeset_setup_dev(int fd, drmModeRes *res, drmModeConnector *conn,
-                             struct modeset_dev *dev)
+static int stereo_setup_dev(int fd, drmModeRes *res, drmModeConnector *conn,
+                            struct stereo_dev *dev)
 {
         int ret;
 
@@ -199,7 +199,7 @@ static int modeset_setup_dev(int fd, drmModeRes *res, drmModeConnector *conn,
                 conn->connector_id, dev->width, dev->height);
 
         /* find a crtc for this connector */
-        ret = modeset_find_crtc(fd, res, conn, dev);
+        ret = stereo_find_crtc(fd, res, conn, dev);
         if (ret) {
                 fprintf(stderr, "no valid crtc for connector %u\n",
                         conn->connector_id);
@@ -207,7 +207,7 @@ static int modeset_setup_dev(int fd, drmModeRes *res, drmModeConnector *conn,
         }
 
         /* create a framebuffer for this CRTC */
-        ret = modeset_create_fb(fd, dev);
+        ret = stereo_create_fb(fd, dev);
         if (ret) {
                 fprintf(stderr, "cannot create framebuffer for connector %u\n",
                         conn->connector_id);
@@ -217,7 +217,7 @@ static int modeset_setup_dev(int fd, drmModeRes *res, drmModeConnector *conn,
         return 0;
 }
 
-static int modeset_open(int *out, const char *node)
+static int stereo_open(int *out, const char *node)
 {
         int fd, ret;
         uint64_t has_dumb;
@@ -269,11 +269,11 @@ static drmModeConnector *get_connector(int fd, drmModeRes *res,
         return NULL;
 }
 
-static struct modeset_dev *modeset_prepare_dev(int fd, int connector)
+static struct stereo_dev *stereo_prepare_dev(int fd, int connector)
 {
         drmModeRes *res;
         drmModeConnector *conn;
-        struct modeset_dev *dev;
+        struct stereo_dev *dev;
         int ret;
 
         /* retrieve resources */
@@ -294,7 +294,7 @@ static struct modeset_dev *modeset_prepare_dev(int fd, int connector)
         dev->conn = conn->connector_id;
 
         /* call helper function to prepare this connector */
-        ret = modeset_setup_dev(fd, res, conn, dev);
+        ret = stereo_setup_dev(fd, res, conn, dev);
         if (ret) {
                 if (ret != -ENOENT) {
                         errno = -ret;
@@ -333,7 +333,7 @@ static uint8_t next_color(bool *up, uint8_t cur, unsigned int mod)
         return next;
 }
 
-static void modeset_draw(struct modeset_dev *dev)
+static void stereo_draw(struct stereo_dev *dev)
 {
         uint8_t r, g, b;
         bool r_up, g_up, b_up;
@@ -362,7 +362,7 @@ static void modeset_draw(struct modeset_dev *dev)
         }
 }
 
-static void modeset_cleanup(int fd, struct modeset_dev *dev)
+static void stereo_cleanup_dev(int fd, struct stereo_dev *dev)
 {
         struct drm_mode_destroy_dumb dreq;
 
@@ -441,19 +441,19 @@ int main(int argc, char **argv)
 {
         int ret, fd;
         struct options options;
-        struct modeset_dev *dev;
+        struct stereo_dev *dev;
 
         ret = process_options(&options, argc, argv);
         if (ret)
                 goto out_return;
 
         /* open the DRM device */
-        ret = modeset_open(&fd, options.card);
+        ret = stereo_open(&fd, options.card);
         if (ret)
                 goto out_return;
 
         /* prepare all connectors and CRTCs */
-        dev = modeset_prepare_dev(fd, options.connector);
+        dev = stereo_prepare_dev(fd, options.connector);
         if (dev == NULL)
                 goto out_close;
 
@@ -469,13 +469,13 @@ int main(int argc, char **argv)
         }
 
         /* draw some colors for 5seconds */
-        modeset_draw(dev);
+        stereo_draw(dev);
 
         ret = 0;
 
 out_dev:
         /* cleanup everything */
-        modeset_cleanup(fd, dev);
+        stereo_cleanup_dev(fd, dev);
 out_close:
         close(fd);
 out_return:
