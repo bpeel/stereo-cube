@@ -22,6 +22,7 @@
 #include <xf86drmMode.h>
 #include <gbm.h>
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 
 #include "stereo-renderer.h"
 #include "util.h"
@@ -58,6 +59,8 @@ struct options {
         int connector;
         int use_3d;
 };
+
+#define MULTIVIEW_WINDOW_EXTENSION "EGL_EXT_multiview_window"
 
 static int stereo_find_crtc(drmModeRes *res, drmModeConnector *conn,
                             struct stereo_dev *dev)
@@ -410,13 +413,18 @@ static int choose_egl_config(struct stereo_context *context)
         return 0;
 }
 
-static int create_egl_surface(struct stereo_context *context)
+static int create_egl_surface(struct stereo_context *context,
+                              const struct options *options)
 {
+        static const EGLint attribs_3d[] = {
+                EGL_MULTIVIEW_VIEW_COUNT_EXT, 2,
+                EGL_NONE
+        };
         context->egl_surface =
                 eglCreateWindowSurface(context->edpy,
                                        context->egl_config,
                                        (NativeWindowType) context->gbm_surface,
-                                       NULL);
+                                       options->use_3d ? attribs_3d : NULL);
         if (context->egl_surface == EGL_NO_SURFACE) {
                 fprintf(stderr, "Failed to create EGL surface\n");
                 return -ENOENT;
@@ -444,9 +452,38 @@ static int create_egl_context(struct stereo_context *context)
         return 0;
 }
 
-static struct stereo_context *stereo_prepare_context(struct stereo_dev *dev)
+static int extension_supported(EGLDisplay edpy, const char *ext)
+{
+        const char *exts = eglQueryString(edpy, EGL_EXTENSIONS);
+        int ext_len = strlen(ext);
+
+        while (1) {
+                char *end;
+
+                while (*exts == ' ')
+                        exts++;
+
+                if (*exts == '\0')
+                        return 0;
+
+                end = strchr(exts, ' ');
+
+                if (end == NULL)
+                        return !strcmp(exts, ext);
+
+                if (end - exts == ext_len && !memcmp(exts, ext, ext_len))
+                        return 1;
+
+                exts = end + 1;
+        }
+}
+
+static struct stereo_context *
+stereo_prepare_context(struct stereo_dev *dev,
+                       const struct options *options)
 {
         struct stereo_context *context;
+        EGLint multiview_view_count = 0;
 
         context = xmalloc(sizeof(*context));
         context->dev = dev;
@@ -468,13 +505,19 @@ static struct stereo_context *stereo_prepare_context(struct stereo_dev *dev)
                 goto error_gbm_device;
         }
 
+        if (options->use_3d &&
+            !extension_supported(context->edpy, MULTIVIEW_WINDOW_EXTENSION)) {
+                fprintf(stderr, MULTIVIEW_WINDOW_EXTENSION " not supported\n");
+                goto error_egl_display;
+        }
+
         if (create_gbm_surface(context))
                 goto error_egl_display;
 
         if (choose_egl_config(context))
                 goto error_gbm_surface;
 
-        if (create_egl_surface(context))
+        if (create_egl_surface(context, options))
                 goto error_gbm_surface;
 
         if (create_egl_context(context))
@@ -488,8 +531,25 @@ static struct stereo_context *stereo_prepare_context(struct stereo_dev *dev)
                 goto error_egl_context;
         }
 
+        if (options->use_3d &&
+            (!eglQueryContext(context->edpy,
+                              context->egl_context,
+                              EGL_MULTIVIEW_VIEW_COUNT_EXT,
+                              &multiview_view_count) ||
+             multiview_view_count < 2)) {
+                fprintf(stderr,
+                        "EGL created a multiview surface with only %i %s\n",
+                        multiview_view_count,
+                        multiview_view_count == 1 ? "view" : "views");
+                goto error_unbind;
+        }
+
         return context;
 
+error_unbind:
+        eglMakeCurrent(context->edpy,
+                       EGL_NO_SURFACE, EGL_NO_SURFACE,
+                       EGL_NO_CONTEXT);
 error_egl_context:
         eglDestroyContext(context->edpy, context->egl_context);
 error_egl_surface:
@@ -709,7 +769,7 @@ int main(int argc, char **argv)
                 goto out_close;
         }
 
-        context = stereo_prepare_context(dev);
+        context = stereo_prepare_context(dev, &options);
         if (context == NULL) {
                 ret = -ENOENT;
                 goto out_dev;
