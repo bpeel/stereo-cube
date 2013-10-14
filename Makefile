@@ -1,6 +1,6 @@
 CC=gcc
 PKGS=gbm egl glesv2 gl libdrm
-LDFLAGS=`pkg-config $(PKGS) --libs`
+LDFLAGS=`pkg-config $(PKGS) --libs` -lm
 CFLAGS=-g -Wall -O0 `pkg-config $(PKGS) --cflags`
 OBJS = stereo-cube.o stereo-renderer.o util.o
 
