@@ -12,4 +12,6 @@
 
 void *xmalloc(size_t size);
 
+int extension_in_list(const char *ext, const char *exts);
+
 #endif /* UTIL_H */

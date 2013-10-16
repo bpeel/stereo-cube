@@ -455,27 +455,8 @@ static int create_egl_context(struct stereo_context *context)
 static int extension_supported(EGLDisplay edpy, const char *ext)
 {
         const char *exts = eglQueryString(edpy, EGL_EXTENSIONS);
-        int ext_len = strlen(ext);
 
-        while (1) {
-                char *end;
-
-                while (*exts == ' ')
-                        exts++;
-
-                if (*exts == '\0')
-                        return 0;
-
-                end = strchr(exts, ' ');
-
-                if (end == NULL)
-                        return !strcmp(exts, ext);
-
-                if (end - exts == ext_len && !memcmp(exts, ext, ext_len))
-                        return 1;
-
-                exts = end + 1;
-        }
+        return extension_in_list(ext, exts);
 }
 
 static struct stereo_context *
