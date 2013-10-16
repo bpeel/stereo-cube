@@ -644,30 +644,15 @@ static void swap(struct stereo_context *context)
         }
 }
 
-static void draw(struct stereo_context *context)
+static void draw(struct stereo_context *context,
+                 struct stereo_renderer *renderer)
 {
-        struct stereo_renderer *renderer = stereo_renderer_new();
-        struct gbm_box box;
-        struct stereo_renderer_box left_box, right_box;
         int i;
 
-        gbm_surface_get_left_box(context->gbm_surface, &box);
-        left_box.x = box.x;
-        left_box.y = box.y;
-        left_box.width = box.width;
-        left_box.height = box.height;
-        gbm_surface_get_right_box(context->gbm_surface, &box);
-        right_box.x = box.x;
-        right_box.y = box.y;
-        right_box.width = box.width;
-        right_box.height = box.height;
-
         for (i = 0; i < 256; i++) {
-                stereo_renderer_draw_frame(renderer, &left_box, &right_box, i);
+                stereo_renderer_draw_frame(renderer, i);
                 swap(context);
         }
-
-        stereo_renderer_free(renderer);
 }
 
 static void usage(void)
@@ -725,6 +710,7 @@ int main(int argc, char **argv)
         struct options options;
         struct stereo_dev *dev;
         struct stereo_context *context;
+        struct stereo_renderer *renderer;
 
         ret = process_options(&options, argc, argv);
         if (ret)
@@ -748,11 +734,19 @@ int main(int argc, char **argv)
                 goto out_dev;
         }
 
-        draw(context);
+        renderer = stereo_renderer_new();
+        if (renderer == NULL) {
+                ret = -ENOENT;
+                goto out_context;
+        }
+
+        draw(context, renderer);
 
         ret = 0;
 
         /* cleanup everything */
+        stereo_renderer_free(renderer);
+out_context:
         stereo_cleanup_context(context);
 out_dev:
         stereo_cleanup_dev(dev);

@@ -6,7 +6,10 @@
  */
 
 #include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+#include <EGL/egl.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "stereo-renderer.h"
 #include "util.h"
@@ -14,11 +17,24 @@
 #define BOX_SIZE 128
 
 struct stereo_renderer {
+        PFNGLDRAWBUFFERSINDEXEDEXTPROC draw_buffers_indexed;
 };
 
 struct stereo_renderer *stereo_renderer_new(void)
 {
-        struct stereo_renderer *renderer = xmalloc(sizeof *renderer);
+        struct stereo_renderer *renderer;
+        const char *exts = (const char *) glGetString(GL_EXTENSIONS);
+
+        if (!extension_in_list("GL_EXT_multiview_draw_buffers", exts)) {
+                fprintf(stderr,
+                        "missing GL_EXT_multiview_draw_buffers extension\n");
+                return NULL;
+        }
+
+        renderer = xmalloc(sizeof *renderer);
+
+        renderer->draw_buffers_indexed =
+                (void *) eglGetProcAddress("glDrawBuffersIndexedEXT");
 
         return renderer;
 }
@@ -49,21 +65,32 @@ static void draw_box(int x, int y)
         glClear(GL_COLOR_BUFFER_BIT);
 }
 
+void set_eye(struct stereo_renderer *renderer, int eye)
+{
+        GLenum locations[] = { GL_MULTIVIEW_EXT };
+        GLint indexes[] = { eye };
+
+        renderer->draw_buffers_indexed(1, locations, indexes);
+}
+
 void stereo_renderer_draw_frame(struct stereo_renderer *renderer,
-                                const struct stereo_renderer_box *left_box,
-                                const struct stereo_renderer_box *right_box,
                                 int frame_num)
 {
-        glClearColor(0.0, 0.0, 0.0, 0.0);
+        glClearColor(0.0, 0.0, 1.0, 0.0);
+        set_eye(renderer, 0);
+        glClear(GL_COLOR_BUFFER_BIT);
+        set_eye(renderer, 1);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glEnable(GL_SCISSOR_TEST);
-        glClearColor(1.0, 0.0, 0.0, 0.0);
 
-        draw_box(left_box->x + left_box->width / 2 - frame_num,
-                 left_box->y + left_box->height / 2);
-        draw_box(right_box->x + right_box->width / 2 + frame_num,
-                 right_box->y + right_box->height / 2);
+        set_eye(renderer, 0);
+        glClearColor(1.0, 0.0, 0.0, 0.0);
+        draw_box(936, 100);
+
+        set_eye(renderer, 1);
+        glClearColor(0.0, 1.0, 0.0, 0.0);
+        draw_box(1064, 100);
 
         glDisable(GL_SCISSOR_TEST);
 }
