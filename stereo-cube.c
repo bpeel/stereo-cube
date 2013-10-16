@@ -337,20 +337,11 @@ static int create_gbm_surface(struct stereo_context *context)
         case DRM_MODE_FLAG_3D_FRAME_PACKING:
                 mode.layout = GBM_BO_STEREO_LAYOUT_FRAME_PACKING;
                 break;
-        case DRM_MODE_FLAG_3D_FIELD_ALTERNATIVE:
-                mode.layout = GBM_BO_STEREO_LAYOUT_FIELD_ALTERNATIVE;
-                break;
         case DRM_MODE_FLAG_3D_LINE_ALTERNATIVE:
                 mode.layout = GBM_BO_STEREO_LAYOUT_LINE_ALTERNATIVE;
                 break;
         case DRM_MODE_FLAG_3D_SIDE_BY_SIDE_FULL:
                 mode.layout = GBM_BO_STEREO_LAYOUT_SIDE_BY_SIDE_FULL;
-                break;
-        case DRM_MODE_FLAG_3D_L_DEPTH:
-                mode.layout = GBM_BO_STEREO_LAYOUT_L_DEPTH;
-                break;
-        case DRM_MODE_FLAG_3D_L_DEPTH_GFX_GFX_DEPTH:
-                mode.layout = GBM_BO_STEREO_LAYOUT_L_DEPTH_GFX_GFX_DEPTH;
                 break;
         case DRM_MODE_FLAG_3D_TOP_AND_BOTTOM:
                 mode.layout = GBM_BO_STEREO_LAYOUT_TOP_AND_BOTTOM;
