@@ -121,6 +121,7 @@ static int is_3d_mode(const drmModeModeInfo *mode)
         switch ((mode->flags & DRM_MODE_FLAG_3D_MASK)) {
         case DRM_MODE_FLAG_3D_TOP_AND_BOTTOM:
         case DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF:
+        case DRM_MODE_FLAG_3D_SIDE_BY_SIDE_FULL:
         case DRM_MODE_FLAG_3D_FRAME_PACKING:
                 return 1;
         default:
