@@ -59,6 +59,7 @@ struct stereo_context {
 
 struct options {
         const char *card;
+        const char *stereo_layout;
         int connector;
         int use_3d;
 };
@@ -119,14 +120,25 @@ static int stereo_find_crtc(drmModeRes *res, drmModeConnector *conn,
         return -ENOENT;
 }
 
-static int is_3d_mode(const drmModeModeInfo *mode)
+static int is_3d_mode(const drmModeModeInfo *mode,
+                      const struct options *options)
 {
         switch ((mode->flags & DRM_MODE_FLAG_3D_MASK)) {
         case DRM_MODE_FLAG_3D_TOP_AND_BOTTOM:
+                return (options->stereo_layout == NULL ||
+                        !strcmp(options->stereo_layout, "tb"));
         case DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF:
+                return (options->stereo_layout == NULL ||
+                        !strcmp(options->stereo_layout, "sbsh"));
         case DRM_MODE_FLAG_3D_SIDE_BY_SIDE_FULL:
+                return (options->stereo_layout == NULL ||
+                        !strcmp(options->stereo_layout, "sbsf"));
         case DRM_MODE_FLAG_3D_FRAME_PACKING:
-                return 1;
+                return (options->stereo_layout == NULL ||
+                        !strcmp(options->stereo_layout, "fp"));
+        case DRM_MODE_FLAG_3D_LINE_ALTERNATIVE:
+                return (options->stereo_layout == NULL ||
+                        !strcmp(options->stereo_layout, "la"));
         default:
                 return 0;
         }
@@ -138,7 +150,7 @@ static int find_mode(struct stereo_dev *dev, drmModeConnector *conn,
         int i;
 
         for (i = 0; i < conn->count_modes; i++) {
-                if (!options->use_3d || is_3d_mode(conn->modes + i)) {
+                if (!options->use_3d || is_3d_mode(conn->modes + i, options)) {
                         dev->mode = conn->modes[i];
                         return 0;
                 }
@@ -707,13 +719,15 @@ static void usage(void)
                "  -h              Show this help message\n"
                "  -d <DEV>        Set the dri device to open\n"
                "  -c <CONNECTOR>  Use the given connector\n"
-               "  -3              Use a stereoscopic mode\n");
+               "  -3              Use a stereoscopic mode\n"
+               "  -l <MODE>       Use a particular stereo mode "
+               "(fp/la/sbsf/tb/sbsh)\n");
         exit(0);
 }
 
 static int process_options(struct options *options, int argc, char **argv)
 {
-        static const char args[] = "-hd:c:3";
+        static const char args[] = "-hd:c:3l:";
         int opt;
 
         memset(options, 0, sizeof(*options));
@@ -730,6 +744,9 @@ static int process_options(struct options *options, int argc, char **argv)
                         break;
                 case 'c':
                         options->connector = atoi(optarg);
+                        break;
+                case 'l':
+                        options->stereo_layout = optarg;
                         break;
                 case '3':
                         options->use_3d = 1;
