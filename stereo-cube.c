@@ -23,9 +23,12 @@
 #include <gbm.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <signal.h>
 
 #include "stereo-renderer.h"
 #include "util.h"
+
+static int quit = 0;
 
 struct stereo_dev {
         int fd;
@@ -644,15 +647,29 @@ static void swap(struct stereo_context *context)
         }
 }
 
+static void sigint_handler(int sig)
+{
+        quit = 1;
+}
+
 static void draw(struct stereo_context *context,
                  struct stereo_renderer *renderer)
 {
-        int i;
+        int frame_num = 0;
+        struct sigaction action = {
+                .sa_handler = sigint_handler,
+        };
+        struct sigaction old_action;
 
-        for (i = 0; i < 256; i++) {
-                stereo_renderer_draw_frame(renderer, i);
+        sigemptyset(&action.sa_mask);
+        sigaction(SIGINT, &action, &old_action);
+
+        while (!quit) {
+                stereo_renderer_draw_frame(renderer, frame_num++);
                 swap(context);
         }
+
+        sigaction(SIGINT, &old_action, NULL);
 }
 
 static void usage(void)
