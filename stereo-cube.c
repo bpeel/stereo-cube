@@ -147,6 +147,32 @@ static int find_mode(struct stereo_dev *dev, drmModeConnector *conn,
         return -ENOENT;
 }
 
+static const char *get_stereo_mode_name(int stereo_flags)
+{
+        switch (stereo_flags) {
+        case DRM_MODE_FLAG_3D_NONE:
+                return "none";
+        case DRM_MODE_FLAG_3D_FRAME_PACKING:
+                return "frame packing";
+        case DRM_MODE_FLAG_3D_FIELD_ALTERNATIVE:
+                return "field alternative";
+        case DRM_MODE_FLAG_3D_LINE_ALTERNATIVE:
+                return "line alternative";
+        case DRM_MODE_FLAG_3D_SIDE_BY_SIDE_FULL:
+                return "side by side full";
+        case DRM_MODE_FLAG_3D_L_DEPTH:
+                return "l depth";
+        case DRM_MODE_FLAG_3D_L_DEPTH_GFX_GFX_DEPTH:
+                return "l depth gfx gfx depth";
+        case DRM_MODE_FLAG_3D_TOP_AND_BOTTOM:
+                return "top and bottom";
+        case DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF:
+                return "side by side half";
+        default:
+                return "unknown";
+        }
+}
+
 static int stereo_setup_dev(drmModeRes *res, drmModeConnector *conn,
                             const struct options *options,
                             struct stereo_dev *dev)
@@ -170,8 +196,10 @@ static int stereo_setup_dev(drmModeRes *res, drmModeConnector *conn,
         /* copy the mode information into our device structure */
         dev->width = dev->mode.hdisplay;
         dev->height = dev->mode.vdisplay;
-        fprintf(stderr, "mode for connector %u is %ux%u\n",
-                conn->connector_id, dev->width, dev->height);
+        fprintf(stderr, "mode for connector %u is %ux%u (%s)\n",
+                conn->connector_id,
+                dev->width, dev->height,
+                get_stereo_mode_name(dev->mode.flags & DRM_MODE_FLAG_3D_MASK));
 
         /* find a crtc for this connector */
         ret = stereo_find_crtc(res, conn, dev);
