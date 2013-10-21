@@ -94,7 +94,7 @@ struct gear {
 };
 
 /** The view rotation [x, y, z] */
-static GLfloat view_rot[3] = { 20.0, 30.0, 0.0 };
+static GLfloat view_rot[3] = { 50.0, 30.0, 0.0 };
 
 /** The gears */
 static struct gear *gear1, *gear2, *gear3;
@@ -108,6 +108,10 @@ static GLuint ModelViewProjectionMatrix_location,
 static GLfloat ProjectionMatrix[16];
 /** The direction of the directional light for the scene */
 static const GLfloat LightSourcePosition[4] = { 5.0, 5.0, 10.0, 1.0 };
+
+static GLfloat eyesep = 0.5;		/* Eye separation. */
+static GLfloat fix_point = 40.0;	/* Fixation point distance.  */
+static GLfloat left, right, asp;	/* Stereo frustum params.  */
 
 /**
  * Fills a gear vertex.
@@ -419,40 +423,29 @@ static void invert(GLfloat * m)
         multiply(m, t);
 }
 
-/**
- * Calculate a perspective projection transformation.
- *
- * @param m the matrix to save the transformation in
- * @param fovy the field of view in the y direction
- * @param aspect the view aspect ratio
- * @param zNear the near clipping plane
- * @param zFar the far clipping plane
- */
-void perspective(GLfloat * m, GLfloat fovy, GLfloat aspect, GLfloat zNear,
-                 GLfloat zFar)
+void frustum(GLfloat *m,
+             float left,
+             float right,
+             float bottom,
+             float top,
+             float nearval,
+             float farval)
 {
-        GLfloat tmp[16];
-        identity(tmp);
+        float x, y, a, b, c, d;
 
-        double sine, cosine, cotangent, deltaZ;
-        GLfloat radians = fovy / 2 * M_PI / 180;
+        x = (2.0f * nearval) / (right - left);
+        y = (2.0f * nearval) / (top - bottom);
+        a = (right + left) / (right - left);
+        b = (top + bottom) / (top - bottom);
+        c = -(farval + nearval) / ( farval - nearval);
+        d = -(2.0f * farval * nearval) / (farval - nearval);  /* error? */
 
-        deltaZ = zFar - zNear;
-        sincos(radians, &sine, &cosine);
-
-        if ((deltaZ == 0) || (sine == 0) || (aspect == 0))
-                return;
-
-        cotangent = cosine / sine;
-
-        tmp[0] = cotangent / aspect;
-        tmp[5] = cotangent;
-        tmp[10] = -(zFar + zNear) / deltaZ;
-        tmp[11] = -1;
-        tmp[14] = -2 * zNear * zFar / deltaZ;
-        tmp[15] = 0;
-
-        memcpy(m, tmp, sizeof(tmp));
+#define M(row,col)  m[col*4+row]
+        M (0,0) = x;     M (0,1) = 0.0f;  M (0,2) = a;      M (0,3) = 0.0f;
+        M (1,0) = 0.0f;  M (1,1) = y;     M (1,2) = b;      M (1,3) = 0.0f;
+        M (2,0) = 0.0f;  M (2,1) = 0.0f;  M (2,2) = c;      M (2,3) = d;
+        M (3,0) = 0.0f;  M (3,1) = 0.0f;  M (3,2) = -1.0f;  M (3,3) = 0.0f;
+#undef M
 }
 
 /**
@@ -525,13 +518,14 @@ draw_gear(struct gear *gear, GLfloat * transform,
 /**
  * Draws the gears.
  */
-static void gears_draw(void)
+static void gears_draw(const GLfloat *view_matrix)
 {
         const static GLfloat red[4] = { 0.8, 0.1, 0.0, 1.0 };
         const static GLfloat green[4] = { 0.0, 0.8, 0.2, 1.0 };
         const static GLfloat blue[4] = { 0.2, 0.2, 1.0, 1.0 };
         GLfloat transform[16];
-        identity(transform);
+
+        memcpy(transform, view_matrix, sizeof(transform));
 
         glClearColor(0.0, 0.0, 0.0, 0.0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -558,10 +552,25 @@ static void set_eye(struct stereo_renderer *renderer, int eye)
 
 static void redraw(struct stereo_renderer *renderer)
 {
+        GLfloat view_matrix[16];
+
+        /* First left eye.  */
         set_eye(renderer, 0);
-        gears_draw();
+
+        frustum(ProjectionMatrix, left, right, -asp, asp, 1.0, 1024.0);
+
+        identity(view_matrix);
+        translate(view_matrix, +0.5 * eyesep, 0.0, 0.0);
+        gears_draw(view_matrix);
+
+        /* Then right eye.  */
         set_eye(renderer, 1);
-        gears_draw();
+
+        frustum(ProjectionMatrix, -right, -left, -asp, asp, 1.0, 1024.0);
+
+        identity(view_matrix);
+        translate(view_matrix, -0.5 * eyesep, 0.0, 0.0);
+        gears_draw(view_matrix);
 }
 
 /**
@@ -572,8 +581,13 @@ static void redraw(struct stereo_renderer *renderer)
  */
 static void gears_reshape(int width, int height)
 {
-        /* Update the projection matrix */
-        perspective(ProjectionMatrix, 60.0, width / (float)height, 1.0, 1024.0);
+        GLfloat w;
+
+        asp = (GLfloat) height / (GLfloat) width;
+        w = fix_point * (1.0 / 5.0);
+
+        left = -5.0 * ((w - 0.5 * eyesep) / fix_point);
+        right = 5.0 * ((w + 0.5 * eyesep) / fix_point);
 
         /* Set the viewport */
         glViewport(0, 0, (GLint) width, (GLint) height);
