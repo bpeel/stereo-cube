@@ -766,6 +766,18 @@ static int process_options(struct options *options, int argc, char **argv)
         return 0;
 }
 
+static void update_size(struct stereo_context *context,
+                        struct stereo_renderer *renderer)
+{
+        EGLint width, height;
+
+        eglQuerySurface(context->edpy, context->egl_surface,
+                        EGL_WIDTH, &width);
+        eglQuerySurface(context->edpy, context->egl_surface,
+                        EGL_HEIGHT, &height);
+        stereo_renderer_resize(renderer, width, height);
+}
+
 int main(int argc, char **argv)
 {
         int ret, fd;
@@ -801,6 +813,8 @@ int main(int argc, char **argv)
                 ret = -ENOENT;
                 goto out_context;
         }
+
+        update_size(context, renderer);
 
         draw(context, renderer);
 

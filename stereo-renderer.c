@@ -18,6 +18,7 @@
 
 struct stereo_renderer {
         PFNGLDRAWBUFFERSINDEXEDEXTPROC draw_buffers_indexed;
+        int width, height;
 };
 
 struct stereo_renderer *stereo_renderer_new(void)
@@ -86,13 +87,20 @@ void stereo_renderer_draw_frame(struct stereo_renderer *renderer,
 
         set_eye(renderer, 0);
         glClearColor(1.0, 0.0, 0.0, 0.0);
-        draw_box(936, 100);
+        draw_box(renderer->width / 2 - BOX_SIZE * 3 / 8, renderer->height / 2);
 
         set_eye(renderer, 1);
         glClearColor(0.0, 1.0, 0.0, 0.0);
-        draw_box(1064, 100);
+        draw_box(renderer->width / 2 + BOX_SIZE * 3 / 8, renderer->height / 2);
 
         glDisable(GL_SCISSOR_TEST);
+}
+
+void stereo_renderer_resize(struct stereo_renderer *renderer,
+                            int width, int height)
+{
+        renderer->width = width;
+        renderer->height = height;
 }
 
 void stereo_renderer_free(struct stereo_renderer *renderer)
