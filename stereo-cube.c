@@ -61,7 +61,6 @@ struct options {
         const char *card;
         const char *stereo_layout;
         int connector;
-        int use_3d;
 };
 
 #define MULTIVIEW_WINDOW_EXTENSION "EGL_EXT_multiview_window"
@@ -120,25 +119,61 @@ static int stereo_find_crtc(drmModeRes *res, drmModeConnector *conn,
         return -ENOENT;
 }
 
-static int is_3d_mode(const drmModeModeInfo *mode,
-                      const struct options *options)
+static int get_mode_rank(const drmModeModeInfo *mode)
+{
+        int layout;
+        int i;
+
+        if (mode == NULL)
+                return -1;
+
+        layout = mode->flags & DRM_MODE_FLAG_3D_MASK;
+
+        static const int ranks[] = {
+                DRM_MODE_FLAG_3D_NONE,
+                DRM_MODE_FLAG_3D_LINE_ALTERNATIVE,
+                DRM_MODE_FLAG_3D_TOP_AND_BOTTOM,
+                DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF,
+                DRM_MODE_FLAG_3D_SIDE_BY_SIDE_FULL,
+                DRM_MODE_FLAG_3D_FRAME_PACKING,
+        };
+
+        for (i = 0; i < sizeof(ranks) / sizeof(ranks[0]); i++)
+                if (ranks[i] == layout)
+                        return i;
+
+        return -1;
+}
+
+static int is_chosen_mode(const drmModeModeInfo *mode,
+                          const struct options *options,
+                          const drmModeModeInfo *old_mode)
 {
         switch ((mode->flags & DRM_MODE_FLAG_3D_MASK)) {
+        case DRM_MODE_FLAG_3D_NONE:
+                return ((options->stereo_layout == NULL ||
+                         !strcmp(options->stereo_layout, "none")) &&
+                        get_mode_rank(mode) > get_mode_rank(old_mode));
         case DRM_MODE_FLAG_3D_TOP_AND_BOTTOM:
-                return (options->stereo_layout == NULL ||
-                        !strcmp(options->stereo_layout, "tb"));
+                return ((options->stereo_layout == NULL ||
+                         !strcmp(options->stereo_layout, "tb")) &&
+                        get_mode_rank(mode) > get_mode_rank(old_mode));
         case DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF:
-                return (options->stereo_layout == NULL ||
-                        !strcmp(options->stereo_layout, "sbsh"));
+                return ((options->stereo_layout == NULL ||
+                         !strcmp(options->stereo_layout, "sbsh")) &&
+                        get_mode_rank(mode) > get_mode_rank(old_mode));
         case DRM_MODE_FLAG_3D_SIDE_BY_SIDE_FULL:
-                return (options->stereo_layout == NULL ||
-                        !strcmp(options->stereo_layout, "sbsf"));
+                return ((options->stereo_layout == NULL ||
+                         !strcmp(options->stereo_layout, "sbsf")) &&
+                        get_mode_rank(mode) > get_mode_rank(old_mode));
         case DRM_MODE_FLAG_3D_FRAME_PACKING:
-                return (options->stereo_layout == NULL ||
-                        !strcmp(options->stereo_layout, "fp"));
+                return ((options->stereo_layout == NULL ||
+                         !strcmp(options->stereo_layout, "fp")) &&
+                        get_mode_rank(mode) > get_mode_rank(old_mode));
         case DRM_MODE_FLAG_3D_LINE_ALTERNATIVE:
-                return (options->stereo_layout == NULL ||
-                        !strcmp(options->stereo_layout, "la"));
+                return ((options->stereo_layout == NULL ||
+                         !strcmp(options->stereo_layout, "la")) &&
+                        get_mode_rank(mode) > get_mode_rank(old_mode));
         default:
                 return 0;
         }
@@ -147,16 +182,17 @@ static int is_3d_mode(const drmModeModeInfo *mode,
 static int find_mode(struct stereo_dev *dev, drmModeConnector *conn,
                      const struct options *options)
 {
+        const drmModeModeInfo *old_mode = NULL;
         int i;
 
         for (i = 0; i < conn->count_modes; i++) {
-                if (!options->use_3d || is_3d_mode(conn->modes + i, options)) {
+                if (is_chosen_mode(conn->modes + i, options, old_mode)) {
                         dev->mode = conn->modes[i];
-                        return 0;
+                        old_mode = &conn->modes[i];
                 }
         }
 
-        return -ENOENT;
+        return old_mode ? 0 : -ENOENT;
 }
 
 static const char *get_stereo_mode_name(int stereo_flags)
@@ -235,8 +271,7 @@ static int stereo_open(int *out, const struct options *options)
                 return ret;
         }
 
-        if (options->use_3d &&
-            drmSetClientCap(fd, DRM_CLIENT_CAP_STEREO_3D, 1)) {
+        if (drmSetClientCap(fd, DRM_CLIENT_CAP_STEREO_3D, 1)) {
                 fprintf(stderr, "error setting stereo client cap: %m\n");
                 close(fd);
                 return -errno;
@@ -375,7 +410,7 @@ static int create_gbm_surface(struct stereo_context *context)
 
         switch ((drm_mode->flags & DRM_MODE_FLAG_3D_MASK)) {
         case DRM_MODE_FLAG_3D_NONE:
-                mode.layout = GBM_BO_STEREO_LAYOUT_NONE;
+                mode.layout = GBM_BO_STEREO_LAYOUT_SIDE_BY_SIDE_HALF;
                 break;
         case DRM_MODE_FLAG_3D_FRAME_PACKING:
                 mode.layout = GBM_BO_STEREO_LAYOUT_FRAME_PACKING;
@@ -459,7 +494,7 @@ static int create_egl_surface(struct stereo_context *context,
                 eglCreateWindowSurface(context->edpy,
                                        context->egl_config,
                                        (NativeWindowType) context->gbm_surface,
-                                       options->use_3d ? attribs_3d : NULL);
+                                       attribs_3d);
         if (context->egl_surface == EGL_NO_SURFACE) {
                 fprintf(stderr, "Failed to create EGL surface\n");
                 return -ENOENT;
@@ -521,8 +556,7 @@ stereo_prepare_context(struct stereo_dev *dev,
                 goto error_gbm_device;
         }
 
-        if (options->use_3d &&
-            !extension_supported(context->edpy, MULTIVIEW_WINDOW_EXTENSION)) {
+        if (!extension_supported(context->edpy, MULTIVIEW_WINDOW_EXTENSION)) {
                 fprintf(stderr, MULTIVIEW_WINDOW_EXTENSION " not supported\n");
                 goto error_egl_display;
         }
@@ -547,8 +581,7 @@ stereo_prepare_context(struct stereo_dev *dev,
                 goto error_egl_context;
         }
 
-        if (options->use_3d &&
-            (!eglQueryContext(context->edpy,
+        if ((!eglQueryContext(context->edpy,
                               context->egl_context,
                               EGL_MULTIVIEW_VIEW_COUNT_EXT,
                               &multiview_view_count) ||
@@ -721,13 +754,13 @@ static void usage(void)
                "  -c <CONNECTOR>  Use the given connector\n"
                "  -3              Use a stereoscopic mode\n"
                "  -l <MODE>       Use a particular stereo mode "
-               "(fp/la/sbsf/tb/sbsh)\n");
+               "(none/fp/la/sbsf/tb/sbsh)\n");
         exit(0);
 }
 
 static int process_options(struct options *options, int argc, char **argv)
 {
-        static const char args[] = "-hd:c:3l:";
+        static const char args[] = "-hd:c:l:";
         int opt;
 
         memset(options, 0, sizeof(*options));
@@ -748,10 +781,6 @@ static int process_options(struct options *options, int argc, char **argv)
                 case 'l':
                         options->stereo_layout = optarg;
                         break;
-                case '3':
-                        options->use_3d = 1;
-                        break;
-                case '?':
                 case ':':
                         return -ENOENT;
                 case '\1':
