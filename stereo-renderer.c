@@ -10,16 +10,103 @@
 #include <EGL/egl.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "stereo-renderer.h"
 #include "util.h"
 
-#define BOX_SIZE 128
-
 struct stereo_renderer {
         PFNGLDRAWBUFFERSINDEXEDEXTPROC draw_buffers_indexed;
         int width, height;
+
+        GLuint program;
+        GLuint color_location;
 };
+
+static GLuint create_shader(GLenum type, const char *source)
+{
+        GLuint shader = glCreateShader(type);
+        GLint length = strlen(source);
+        GLint status;
+
+        glShaderSource(shader, 1, &source, &length);
+        glCompileShader(shader);
+
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+
+        if (status == 0) {
+                char info_log[512];
+                GLsizei info_log_length;
+
+                glGetShaderInfoLog(shader,
+                                    sizeof(info_log) - 1,
+                                    &info_log_length,
+                                    info_log);
+                fprintf(stderr, "%.*s\n", info_log_length, info_log);
+
+                glDeleteShader(shader);
+
+                return 0;
+        }
+
+        return shader;
+}
+
+static GLuint create_program(void)
+{
+        GLuint shader, program;
+        GLint status;
+        static const char vertex_source[] =
+                "attribute highp vec3 pos;\n"
+                "\n"
+                "void main()\n"
+                "{\n"
+                "        gl_Position = vec4(pos, 1.0);\n"
+                "}\n";
+        static const char fragment_source[] =
+                "uniform highp vec4 color;\n"
+                "\n"
+                "void main()\n"
+                "{\n"
+                "        gl_FragColor = color;\n"
+                "}\n";
+
+        program = glCreateProgram();
+
+        shader = create_shader(GL_VERTEX_SHADER, vertex_source);
+        if (shader) {
+                glAttachShader(program, shader);
+                glDeleteShader(shader);
+        }
+
+        shader = create_shader(GL_FRAGMENT_SHADER, fragment_source);
+        if (shader) {
+                glAttachShader(program, shader);
+                glDeleteShader(shader);
+        }
+
+        glBindAttribLocation(program, 0, "pos");
+
+        glLinkProgram(program);
+        glGetProgramiv(program, GL_LINK_STATUS, &status);
+
+        if (status == 0) {
+                char info_log[512];
+                GLsizei info_log_length;
+
+                glGetProgramInfoLog(program,
+                                    sizeof(info_log) - 1,
+                                    &info_log_length,
+                                    info_log);
+                fprintf(stderr, "%.*s\n", info_log_length, info_log);
+
+                glDeleteProgram(program);
+
+                return 0;
+        }
+
+        return program;
+}
 
 struct stereo_renderer *stereo_renderer_new(void)
 {
@@ -37,36 +124,15 @@ struct stereo_renderer *stereo_renderer_new(void)
         renderer->draw_buffers_indexed =
                 (void *) eglGetProcAddress("glDrawBuffersIndexedEXT");
 
+        renderer->program = create_program();
+
+        renderer->color_location =
+                glGetUniformLocation(renderer->program, "color");
+
         return renderer;
 }
 
-static void draw_box(int x, int y)
-{
-        int width, height;
-
-        x -= BOX_SIZE / 2;
-        y -= BOX_SIZE / 2;
-
-        if (x < 0) {
-                width = BOX_SIZE + x;
-                x = 0;
-        } else {
-                width = BOX_SIZE;
-        }
-        if (y < 0) {
-                height = BOX_SIZE + y;
-                y = 0;
-        } else {
-                height = BOX_SIZE;
-        }
-        if (width <= 0 || height <= 0)
-                return;
-
-        glScissor(x, y, width, height);
-        glClear(GL_COLOR_BUFFER_BIT);
-}
-
-void set_eye(struct stereo_renderer *renderer, int eye)
+static void set_eye(struct stereo_renderer *renderer, int eye)
 {
         GLenum locations[] = { GL_MULTIVIEW_EXT };
         GLint indexes[] = { eye };
@@ -74,26 +140,68 @@ void set_eye(struct stereo_renderer *renderer, int eye)
         renderer->draw_buffers_indexed(1, locations, indexes);
 }
 
+static void draw_square(struct stereo_renderer *renderer,
+                        float x, float y,
+                        uint32_t color,
+                        float depth)
+{
+        float color_array[] = {
+                (color >> 24) / 255.0f,
+                ((color >> 16) & 0xff) / 255.0f,
+                ((color >> 8) & 0xff) / 255.0f,
+                (color & 0xff) / 255.0f,
+        };
+        float vertices[] = {
+                x, y, depth,
+                x + 1.0f, y, depth,
+                x, y + 1.0f, depth,
+                x + 1.0f, y + 1.0f, depth
+        };
+
+        glUniform4fv(renderer->color_location, 1, color_array);
+        glVertexAttribPointer(0, /* index */
+                              3, /* size */
+                              GL_FLOAT,
+                              GL_FALSE, /* not normalized */
+                              sizeof(float) * 3,
+                              vertices);
+        glEnableVertexAttribArray(0);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        glDisableVertexAttribArray(0);
+}
+
 void stereo_renderer_draw_frame(struct stereo_renderer *renderer,
                                 int frame_num)
 {
-        glClearColor(0.0, 0.0, 1.0, 0.0);
-        set_eye(renderer, 0);
-        glClear(GL_COLOR_BUFFER_BIT);
-        set_eye(renderer, 1);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glUseProgram(renderer->program);
 
-        glEnable(GL_SCISSOR_TEST);
+        glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         set_eye(renderer, 0);
-        glClearColor(1.0, 0.0, 0.0, 0.0);
-        draw_box(renderer->width / 2 - BOX_SIZE * 3 / 8, renderer->height / 2);
+
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_ALWAYS);
+        glDepthMask(GL_TRUE);
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+        draw_square(renderer, -1.0f, -1.0f, 0x000000ff, 0.0f);
+        draw_square(renderer, 0.0f, -1.0f, 0x000000ff, 0.25f);
+        draw_square(renderer, -1.0f, 0.0f, 0x000000ff, 0.5f);
+        draw_square(renderer, 0.0f, 0.0f, 0x000000ff, 0.75f);
+
+        glDepthFunc(GL_GREATER);
+        glDepthMask(GL_FALSE);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+        draw_square(renderer, -0.5f, -0.5f, 0xff0000ff, 0.3f);
 
         set_eye(renderer, 1);
-        glClearColor(0.0, 1.0, 0.0, 0.0);
-        draw_box(renderer->width / 2 + BOX_SIZE * 3 / 8, renderer->height / 2);
 
-        glDisable(GL_SCISSOR_TEST);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        draw_square(renderer, -0.5f, -0.5f, 0x0000ffff, 0.6f);
 }
 
 void stereo_renderer_resize(struct stereo_renderer *renderer,
@@ -105,5 +213,6 @@ void stereo_renderer_resize(struct stereo_renderer *renderer,
 
 void stereo_renderer_free(struct stereo_renderer *renderer)
 {
+        glDeleteProgram(renderer->program);
         free(renderer);
 }

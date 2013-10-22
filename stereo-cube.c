@@ -462,7 +462,7 @@ static int choose_egl_config(struct stereo_context *context)
                 EGL_GREEN_SIZE, 1,
                 EGL_BLUE_SIZE, 1,
                 EGL_ALPHA_SIZE, EGL_DONT_CARE,
-                EGL_DEPTH_SIZE, 0,
+                EGL_DEPTH_SIZE, 1,
                 EGL_BUFFER_SIZE, EGL_DONT_CARE,
                 EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
                 EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
