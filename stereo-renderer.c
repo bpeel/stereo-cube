@@ -627,6 +627,8 @@ static void gears_idle(void)
         if (angle > 3600.0)
                 angle -= 3600.0;
 
+        view_rot[1] = angle / 2.0f;
+
         frames++;
 
         if (tRate0 < 0.0)
