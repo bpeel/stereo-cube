@@ -5,14 +5,11 @@
  * Dedicated to the Public Domain.
  */
 
-#include <stdlib.h>
+#ifndef GEARS_RENDERER_H
+#define GEARS_RENDERER_H
 
 #include "stereo-renderer.h"
 
-#include "gears-renderer.h"
+extern const struct stereo_renderer gears_renderer;
 
-const struct stereo_renderer const *
-stereo_renderers[] = {
-        &gears_renderer,
-        NULL
-};
+#endif /* GEARS_RENDERER_H */

@@ -58,6 +58,7 @@ struct stereo_context {
 };
 
 struct options {
+        const struct stereo_renderer *renderer;
         const char *card;
         const char *stereo_layout;
         int connector;
@@ -726,7 +727,8 @@ static void sigint_handler(int sig)
 }
 
 static void draw(struct stereo_context *context,
-                 struct stereo_renderer *renderer)
+                 const struct options *options,
+                 void *renderer_data)
 {
         int frame_num = 0;
         struct sigaction action = {
@@ -738,7 +740,7 @@ static void draw(struct stereo_context *context,
         sigaction(SIGINT, &action, &old_action);
 
         while (!quit) {
-                stereo_renderer_draw_frame(renderer, frame_num++);
+                options->renderer->draw_frame(renderer_data, frame_num++);
                 swap(context);
         }
 
@@ -754,18 +756,44 @@ static void usage(void)
                "  -c <CONNECTOR>  Use the given connector\n"
                "  -3              Use a stereoscopic mode\n"
                "  -l <MODE>       Use a particular stereo mode "
-               "(none/fp/la/sbsf/tb/sbsh)\n");
+               "(none/fp/la/sbsf/tb/sbsh)\n"
+               "  -L              List available renderers\n"
+               "  -r <RENDERER>   Select a renderer\n");
         exit(0);
+}
+
+static void list_renderers(void)
+{
+        int i;
+
+        printf("Available renderers:\n");
+
+        for (i = 0; stereo_renderers[i]; i++)
+                printf("%s\n", stereo_renderers[i]->name);
+
+        exit(0);
+}
+
+static const struct stereo_renderer *select_renderer(const char *name)
+{
+        int i;
+
+        for (i = 0; stereo_renderers[i]; i++)
+                if (!strcmp(stereo_renderers[i]->name, name))
+                        return stereo_renderers[i];
+
+        return NULL;
 }
 
 static int process_options(struct options *options, int argc, char **argv)
 {
-        static const char args[] = "-hd:c:l:";
+        static const char args[] = "-hd:c:l:Lr:";
         int opt;
 
         memset(options, 0, sizeof(*options));
 
         options->connector = -1;
+        options->renderer = stereo_renderers[0];
 
         while ((opt = getopt(argc, argv, args)) != -1) {
                 switch (opt) {
@@ -780,6 +808,18 @@ static int process_options(struct options *options, int argc, char **argv)
                         break;
                 case 'l':
                         options->stereo_layout = optarg;
+                        break;
+                case 'L':
+                        list_renderers();
+                        break;
+                case 'r':
+                        options->renderer = select_renderer(optarg);
+                        if (options->renderer == NULL) {
+                                fprintf(stderr,
+                                        "unknown renderer \"%s\"\n",
+                                        optarg);
+                                return -ENOENT;
+                        }
                         break;
                 case ':':
                         return -ENOENT;
@@ -796,7 +836,8 @@ static int process_options(struct options *options, int argc, char **argv)
 }
 
 static void update_size(struct stereo_context *context,
-                        struct stereo_renderer *renderer)
+                        const struct options *options,
+                        void *renderer_data)
 {
         EGLint width, height;
 
@@ -804,7 +845,7 @@ static void update_size(struct stereo_context *context,
                         EGL_WIDTH, &width);
         eglQuerySurface(context->edpy, context->egl_surface,
                         EGL_HEIGHT, &height);
-        stereo_renderer_resize(renderer, width, height);
+        options->renderer->resize(renderer_data, width, height);
 }
 
 int main(int argc, char **argv)
@@ -813,7 +854,7 @@ int main(int argc, char **argv)
         struct options options;
         struct stereo_dev *dev;
         struct stereo_context *context;
-        struct stereo_renderer *renderer;
+        void *renderer_data;
 
         ret = process_options(&options, argc, argv);
         if (ret)
@@ -837,20 +878,20 @@ int main(int argc, char **argv)
                 goto out_dev;
         }
 
-        renderer = stereo_renderer_new();
-        if (renderer == NULL) {
+        renderer_data = options.renderer->new();
+        if (renderer_data == NULL) {
                 ret = -ENOENT;
                 goto out_context;
         }
 
-        update_size(context, renderer);
+        update_size(context, &options, renderer_data);
 
-        draw(context, renderer);
+        draw(context, &options, renderer_data);
 
         ret = 0;
 
         /* cleanup everything */
-        stereo_renderer_free(renderer);
+        options.renderer->free(renderer_data);
 out_context:
         stereo_cleanup_context(context);
 out_dev:

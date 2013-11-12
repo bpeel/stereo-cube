@@ -8,13 +8,18 @@
 #ifndef STEREO_RENDERER_H
 #define STEREO_RENDERER_H
 
-struct stereo_renderer;
+struct stereo_renderer
+{
+        const char *name;
+        void *(* new)(void);
+        void (* draw_frame)(void *renderer,
+                            int frame_num);
+        void (* resize)(void *renderer,
+                        int width, int height);
+        void (* free)(void *renderer);
+};
 
-struct stereo_renderer *stereo_renderer_new(void);
-void stereo_renderer_draw_frame(struct stereo_renderer *renderer,
-                                int frame_num);
-void stereo_renderer_resize(struct stereo_renderer *renderer,
-                            int width, int height);
-void stereo_renderer_free(struct stereo_renderer *renderer);
+extern const struct stereo_renderer const *
+stereo_renderers[];
 
 #endif /* STEREO_RENDERER_H */
