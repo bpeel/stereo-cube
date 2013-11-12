@@ -10,9 +10,11 @@
 #include "stereo-renderer.h"
 
 #include "gears-renderer.h"
+#include "depth-renderer.h"
 
 const struct stereo_renderer const *
 stereo_renderers[] = {
         &gears_renderer,
+        &depth_renderer,
         NULL
 };
