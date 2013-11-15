@@ -1,5 +1,5 @@
 CC=gcc
-PKGS=gbm egl glesv2 gl libdrm
+PKGS=gbm egl glesv2 gl libdrm wayland-client wayland-egl
 LDFLAGS=`pkg-config $(PKGS) --libs` -lm
 CFLAGS=-g -Wall -O0 `pkg-config $(PKGS) --cflags`
 OBJS = \
@@ -9,7 +9,8 @@ OBJS = \
 	util.o \
 	gears-renderer.o \
 	depth-renderer.o \
-	gbm-winsys.o
+	gbm-winsys.o \
+	wayland-winsys.o
 
 all : stereo-cube
 
@@ -18,6 +19,7 @@ stereo-renderer.c : stereo-renderer.h util.h
 gears-renderer.c : stereo-renderer.h util.h
 depth-renderer.c : stereo-renderer.h util.h
 gbm-winsys.c : stereo-winsys.h util.h
+wayland-winsys.c : stereo-winsys.h util.h
 util.c : util.h
 
 stereo-cube : $(OBJS)

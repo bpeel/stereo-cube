@@ -10,9 +10,11 @@
 #include "stereo-winsys.h"
 
 #include "gbm-winsys.h"
+#include "wayland-winsys.h"
 
 const struct stereo_winsys const *
 stereo_winsyss[] = {
         &gbm_winsys,
+        &wayland_winsys,
         NULL
 };
