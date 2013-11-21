@@ -180,6 +180,7 @@ void depth_renderer_draw_frame(void *data,
 
         set_eye(renderer, 0);
 
+        glClearColor(0.0, 0.0, 0.0, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glEnable(GL_DEPTH_TEST);
