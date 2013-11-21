@@ -677,7 +677,11 @@ static const char vertex_shader[] =
 static const char fragment_shader[] =
         "precision mediump float;\n"
         "varying vec4 Color;\n"
-        "\n" "void main(void)\n" "{\n" "    gl_FragColor = Color;\n" "}";
+        "\n"
+        "void main(void)\n"
+        "{\n"
+        "    gl_FragColor = Color;\n"
+        "}";
 
 static void gears_init(void)
 {
