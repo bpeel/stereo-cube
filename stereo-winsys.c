@@ -14,7 +14,7 @@
 
 const struct stereo_winsys const *
 stereo_winsyss[] = {
-        &gbm_winsys,
         &wayland_winsys,
+        &gbm_winsys,
         NULL
 };
