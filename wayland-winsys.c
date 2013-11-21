@@ -66,6 +66,50 @@ static void *wayland_winsys_new(const struct stereo_winsys_callbacks *callbacks,
         return winsys;
 }
 
+static void update_size(struct wayland_winsys *winsys)
+{
+        EGLint width, height;
+
+        eglQuerySurface(winsys->edpy, winsys->egl_surface,
+                        EGL_WIDTH, &width);
+        eglQuerySurface(winsys->edpy, winsys->egl_surface,
+                        EGL_HEIGHT, &height);
+        winsys->callbacks->update_size(winsys->cb_data, width, height);
+}
+
+
+static void handle_ping(void *data,
+                        struct wl_shell_surface *shell_surface,
+                        uint32_t serial)
+{
+	wl_shell_surface_pong(shell_surface, serial);
+}
+
+static void handle_configure(void *data,
+                             struct wl_shell_surface *shell_surface,
+                             uint32_t edges, int32_t width, int32_t height)
+{
+	struct wayland_winsys *winsys = data;
+
+	if (winsys->native_window)
+		wl_egl_window_resize(winsys->native_window,
+                                     width, height,
+                                     0, 0);
+
+        update_size(winsys);
+}
+
+static void
+handle_popup_done(void *data, struct wl_shell_surface *shell_surface)
+{
+}
+
+static const struct wl_shell_surface_listener shell_surface_listener = {
+	handle_ping,
+	handle_configure,
+	handle_popup_done
+};
+
 static void registry_handle_global(void *data,
                                    struct wl_registry *registry,
                                    uint32_t name,
@@ -210,6 +254,10 @@ static int create_surface(struct wayland_winsys *winsys)
 	winsys->shell_surface = wl_shell_get_shell_surface(winsys->shell,
 							   winsys->surface);
 
+        wl_shell_surface_add_listener(winsys->shell_surface,
+                                      &shell_surface_listener,
+                                      winsys);
+
 	winsys->native_window =
 		wl_egl_window_create(winsys->surface, 800, 600);
 	winsys->egl_surface =
@@ -266,17 +314,6 @@ error:
 static void sigint_handler(int sig)
 {
         quit = 1;
-}
-
-static void update_size(struct wayland_winsys *winsys)
-{
-        EGLint width, height;
-
-        eglQuerySurface(winsys->edpy, winsys->egl_surface,
-                        EGL_WIDTH, &width);
-        eglQuerySurface(winsys->edpy, winsys->egl_surface,
-                        EGL_HEIGHT, &height);
-        winsys->callbacks->update_size(winsys->cb_data, width, height);
 }
 
 static void frame_cb(void *data, struct wl_callback *callback, uint32_t time)
