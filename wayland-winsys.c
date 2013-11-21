@@ -190,6 +190,8 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *keyboard,
 
 	if (key == KEY_F11 && state)
 		toggle_fullscreen(winsys, !winsys->fullscreen);
+        else if ((key == KEY_Q || key == KEY_ESC) && state)
+                quit = 1;
 }
 
 static void keyboard_handle_modifiers(void *data,
