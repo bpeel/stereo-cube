@@ -15,9 +15,14 @@
 #include <string.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <linux/input.h>
 
 #include "wayland-winsys.h"
 #include "util.h"
+
+struct geometry {
+        int width, height;
+};
 
 struct wayland_winsys {
         const struct stereo_winsys_callbacks *callbacks;
@@ -38,6 +43,20 @@ struct wayland_winsys {
 	EGLSurface egl_surface;
 
         struct wl_callback *frame_callback;
+
+        struct wl_list seats;
+
+        int fullscreen;
+        struct geometry window_size;
+        struct geometry old_size;
+};
+
+struct seat {
+        struct wayland_winsys *winsys;
+        uint32_t name;
+        struct wl_seat *seat;
+        struct wl_list link;
+        struct wl_keyboard *keyboard;
 };
 
 static int quit = 0;
@@ -63,20 +82,41 @@ static void *wayland_winsys_new(const struct stereo_winsys_callbacks *callbacks,
         winsys->callbacks = callbacks;
         winsys->cb_data = cb_data;
 
+        wl_list_init(&winsys->seats);
+
         return winsys;
+}
+
+static void remove_seat(struct seat *seat)
+{
+        if (seat->keyboard)
+                wl_keyboard_destroy(seat->keyboard);
+        wl_seat_destroy(seat->seat);
+        wl_list_remove(&seat->link);
+        free(seat);
 }
 
 static void update_size(struct wayland_winsys *winsys)
 {
-        EGLint width, height;
-
-        eglQuerySurface(winsys->edpy, winsys->egl_surface,
-                        EGL_WIDTH, &width);
-        eglQuerySurface(winsys->edpy, winsys->egl_surface,
-                        EGL_HEIGHT, &height);
-        winsys->callbacks->update_size(winsys->cb_data, width, height);
+        winsys->callbacks->update_size(winsys->cb_data,
+                                       winsys->window_size.width,
+                                       winsys->window_size.height);
 }
 
+static void set_size(struct wayland_winsys *winsys,
+                     int width,
+                     int height)
+{
+        winsys->window_size.width = width;
+        winsys->window_size.height = height;
+
+	if (winsys->native_window)
+		wl_egl_window_resize(winsys->native_window,
+                                     width, height,
+                                     0, 0);
+
+        update_size(winsys);
+}
 
 static void handle_ping(void *data,
                         struct wl_shell_surface *shell_surface,
@@ -91,12 +131,7 @@ static void handle_configure(void *data,
 {
 	struct wayland_winsys *winsys = data;
 
-	if (winsys->native_window)
-		wl_egl_window_resize(winsys->native_window,
-                                     width, height,
-                                     0, 0);
-
-        update_size(winsys);
+        set_size(winsys, width, height);
 }
 
 static void
@@ -109,6 +144,109 @@ static const struct wl_shell_surface_listener shell_surface_listener = {
 	handle_configure,
 	handle_popup_done
 };
+
+static void
+toggle_fullscreen(struct wayland_winsys *winsys, int fullscreen)
+{
+        if (!!fullscreen == winsys->fullscreen)
+                return;
+
+	winsys->fullscreen = !!fullscreen;
+
+	if (fullscreen) {
+                const int method = WL_SHELL_SURFACE_FULLSCREEN_METHOD_DEFAULT;
+                winsys->old_size = winsys->window_size;
+		wl_shell_surface_set_fullscreen(winsys->shell_surface,
+                                                method, 0, NULL);
+	} else {
+		wl_shell_surface_set_toplevel(winsys->shell_surface);
+                set_size(winsys,
+                         winsys->old_size.width,
+                         winsys->old_size.height);
+	}
+}
+
+static void keyboard_handle_keymap(void *data, struct wl_keyboard *keyboard,
+                                   uint32_t format, int fd, uint32_t size)
+{
+}
+
+static void keyboard_handle_enter(void *data, struct wl_keyboard *keyboard,
+                                  uint32_t serial, struct wl_surface *surface,
+                                  struct wl_array *keys)
+{
+}
+
+static void keyboard_handle_leave(void *data, struct wl_keyboard *keyboard,
+                                  uint32_t serial, struct wl_surface *surface)
+{
+}
+
+static void keyboard_handle_key(void *data, struct wl_keyboard *keyboard,
+                                uint32_t serial, uint32_t time, uint32_t key,
+                                uint32_t state)
+{
+	struct wayland_winsys *winsys = data;
+
+	if (key == KEY_F11 && state)
+		toggle_fullscreen(winsys, !winsys->fullscreen);
+}
+
+static void keyboard_handle_modifiers(void *data,
+                                      struct wl_keyboard *keyboard,
+                                      uint32_t serial,
+                                      uint32_t mods_depressed,
+                                      uint32_t mods_latched,
+                                      uint32_t mods_locked,
+                                      uint32_t group)
+{
+}
+
+static const struct wl_keyboard_listener keyboard_listener = {
+	keyboard_handle_keymap,
+	keyboard_handle_enter,
+	keyboard_handle_leave,
+	keyboard_handle_key,
+	keyboard_handle_modifiers,
+};
+
+static void handle_capabilities(void *data,
+                                struct wl_seat *wl_seat,
+                                uint32_t capabilities)
+{
+        struct seat *seat = data;
+
+        if ((capabilities & WL_SEAT_CAPABILITY_KEYBOARD)) {
+                if (seat->keyboard == NULL) {
+                        seat->keyboard = wl_seat_get_keyboard(wl_seat);
+                        wl_keyboard_add_listener(seat->keyboard,
+                                                 &keyboard_listener,
+                                                 seat->winsys);
+                }
+        } else if (seat->keyboard) {
+                wl_keyboard_destroy(seat->keyboard);
+                seat->keyboard = NULL;
+        }
+}
+
+static const struct wl_seat_listener seat_listener = {
+        handle_capabilities
+};
+
+static void add_seat(struct wayland_winsys *winsys,
+                     uint32_t name)
+{
+        struct seat *seat = xmalloc(sizeof *seat);
+
+        seat->seat = wl_registry_bind(winsys->registry,
+                                      name, &wl_seat_interface, 1);
+        seat->name = name;
+        seat->winsys = winsys;
+        seat->keyboard = NULL;
+        wl_list_insert(&winsys->seats, &seat->link);
+
+        wl_seat_add_listener(seat->seat, &seat_listener, seat);
+}
 
 static void registry_handle_global(void *data,
                                    struct wl_registry *registry,
@@ -127,13 +265,24 @@ static void registry_handle_global(void *data,
                 winsys->shell == NULL) {
 		winsys->shell = wl_registry_bind(registry, name,
                                                  &wl_shell_interface, 1);
-	}
+	} else if (strcmp(interface, "wl_seat") == 0) {
+                add_seat(winsys, name);
+        }
 }
 
 static void registry_handle_global_remove(void *data,
                                           struct wl_registry *registry,
                                           uint32_t name)
 {
+        struct wayland_winsys *winsys = data;
+        struct seat *seat;
+
+        wl_list_for_each(seat, &winsys->seats, link) {
+                if (seat->name == name) {
+                        remove_seat(seat);
+                        break;
+                }
+        }
 }
 
 static const struct wl_registry_listener registry_listener = {
@@ -143,6 +292,11 @@ static const struct wl_registry_listener registry_listener = {
 
 static void wayland_winsys_disconnect(struct wayland_winsys *winsys)
 {
+        struct seat *seat, *tmp;
+
+        wl_list_for_each_safe(seat, tmp, &winsys->seats, link)
+                remove_seat(seat);
+
         if (winsys->egl_surface) {
                 eglMakeCurrent(winsys->edpy,
                                EGL_NO_SURFACE, EGL_NO_SURFACE,
@@ -258,8 +412,13 @@ static int create_surface(struct wayland_winsys *winsys)
                                       &shell_surface_listener,
                                       winsys);
 
+        winsys->window_size.width = 800;
+        winsys->window_size.height = 600;
+
 	winsys->native_window =
-		wl_egl_window_create(winsys->surface, 800, 600);
+		wl_egl_window_create(winsys->surface,
+                                     winsys->window_size.width,
+                                     winsys->window_size.height);
 	winsys->egl_surface =
 		eglCreateWindowSurface(winsys->edpy,
 				       winsys->egl_config,
