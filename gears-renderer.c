@@ -47,6 +47,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <errno.h>
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
@@ -742,23 +743,26 @@ static void gears_init(void)
 
 static void *gears_renderer_new(void)
 {
-        struct gears_renderer *renderer;
+        return xmalloc(sizeof (struct gears_renderer));
+}
+
+static int gears_renderer_connect(void *data)
+{
+        struct gears_renderer *renderer = data;
         const char *exts = (const char *)glGetString(GL_EXTENSIONS);
 
         if (!extension_in_list("GL_EXT_multiview_draw_buffers", exts)) {
                 fprintf(stderr,
                         "missing GL_EXT_multiview_draw_buffers extension\n");
-                return NULL;
+                return -ENOENT;
         }
-
-        renderer = xmalloc(sizeof *renderer);
 
         renderer->draw_buffers_indexed =
                 (void *)eglGetProcAddress("glDrawBuffersIndexedEXT");
 
         gears_init();
 
-        return renderer;
+        return 0;
 }
 
 static void gears_renderer_draw_frame(void *data,
@@ -786,6 +790,7 @@ static void gears_renderer_free(void *data)
 const struct stereo_renderer gears_renderer = {
         .name = "gears",
         .new = gears_renderer_new,
+        .connect = gears_renderer_connect,
         .draw_frame = gears_renderer_draw_frame,
         .resize = gears_renderer_resize,
         .free = gears_renderer_free,

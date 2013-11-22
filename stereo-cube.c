@@ -47,6 +47,16 @@ static void usage(void)
                 }
         }
 
+        for (i = 0; stereo_renderers[i]; i++) {
+                if (stereo_renderers[i]->options_desc) {
+                        printf("\n"
+                               "Options for the %s renderer:\n"
+                               "%s\n",
+                               stereo_renderers[i]->name,
+                               stereo_renderers[i]->options_desc);
+                }
+        }
+
         exit(0);
 }
 
@@ -111,6 +121,13 @@ static void create_winsys(struct stereo_cube *cube)
                 cube->winsys_data = cube->winsys->new(&winsys_callbacks, cube);
 }
 
+static void create_renderer(struct stereo_cube *cube)
+{
+        if (cube->renderer_data == NULL)
+                cube->renderer_data =
+                        cube->renderer->new();
+}
+
 static int process_options(struct stereo_cube *cube, int argc, char **argv)
 {
         static const char default_args[] = "-hLr:w:";
@@ -118,9 +135,13 @@ static int process_options(struct stereo_cube *cube, int argc, char **argv)
         int i, opt;
 
         strcpy(args, default_args);
+
         for (i = 0; stereo_winsyss[i]; i++)
                 if (stereo_winsyss[i]->options)
                         strcat(args, stereo_winsyss[i]->options);
+        for (i = 0; stereo_renderers[i]; i++)
+                if (stereo_renderers[i]->options)
+                        strcat(args, stereo_renderers[i]->options);
 
         while ((opt = getopt(argc, argv, args)) != -1) {
                 switch (opt) {
@@ -146,6 +167,12 @@ static int process_options(struct stereo_cube *cube, int argc, char **argv)
                         }
                         break;
                 case 'r':
+                        if (cube->renderer_data) {
+                                fprintf(stderr,
+                                        "Renderer chosen seen after "
+                                        "renderer option seen\n");
+                                return -ENOENT;
+                        }
                         cube->renderer = select_renderer(optarg);
                         if (cube->renderer == NULL) {
                                 fprintf(stderr,
@@ -165,6 +192,11 @@ static int process_options(struct stereo_cube *cube, int argc, char **argv)
                         create_winsys(cube);
                         if (cube->winsys->handle_option &&
                             cube->winsys->handle_option(cube->winsys_data, opt))
+                                break;
+                        create_renderer(cube);
+                        if (cube->renderer->handle_option &&
+                            cube->renderer->handle_option(cube->renderer_data,
+                                                          opt))
                                 break;
                         fprintf(stderr, "unexpected argument \"-%c\"\n", opt);
                         return -ENOENT;
@@ -189,23 +221,22 @@ int main(int argc, char **argv)
                 goto out;
 
         create_winsys(&cube);
+        create_renderer(&cube);
 
         ret = cube.winsys->connect(cube.winsys_data);
         if (ret)
                 goto out;
 
-        cube.renderer_data = cube.renderer->new();
-        if (cube.renderer_data == NULL) {
-                ret = -ENOENT;
+        ret = cube.renderer->connect(cube.renderer_data);
+        if (ret)
                 goto out;
-        }
 
         cube.winsys->main_loop(cube.winsys_data);
 
-        /* cleanup everything */
-        cube.renderer->free(cube.renderer_data);
-
 out:
+        /* cleanup everything */
+        if (cube.renderer_data)
+                cube.renderer->free(cube.renderer_data);
         if (cube.winsys_data)
                 cube.winsys->free(cube.winsys_data);
         return ret ? EXIT_FAILURE : EXIT_SUCCESS;

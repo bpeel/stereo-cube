@@ -11,7 +11,11 @@
 struct stereo_renderer
 {
         const char *name;
+        const char *options;
+        const char *options_desc;
         void *(* new)(void);
+        int (* handle_option)(void *renderer, int opt);
+        int (* connect)(void *renderer);
         void (* draw_frame)(void *renderer,
                             int frame_num);
         void (* resize)(void *renderer,

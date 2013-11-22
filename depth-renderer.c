@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #include "stereo-renderer.h"
 #include "util.h"
@@ -110,16 +111,23 @@ static GLuint create_program(void)
 
 void *depth_renderer_new(void)
 {
-        struct depth_renderer *renderer;
+        struct depth_renderer *renderer = xmalloc(sizeof *renderer);
+
+        memset(renderer, 0, sizeof *renderer);
+
+        return renderer;
+}
+
+int depth_renderer_connect(void *data)
+{
+        struct depth_renderer *renderer = data;
         const char *exts = (const char *) glGetString(GL_EXTENSIONS);
 
         if (!extension_in_list("GL_EXT_multiview_draw_buffers", exts)) {
                 fprintf(stderr,
                         "missing GL_EXT_multiview_draw_buffers extension\n");
-                return NULL;
+                return -ENOENT;
         }
-
-        renderer = xmalloc(sizeof *renderer);
 
         renderer->draw_buffers_indexed =
                 (void *) eglGetProcAddress("glDrawBuffersIndexedEXT");
@@ -129,7 +137,7 @@ void *depth_renderer_new(void)
         renderer->color_location =
                 glGetUniformLocation(renderer->program, "color");
 
-        return renderer;
+        return 0;
 }
 
 static void set_eye(struct depth_renderer *renderer, int eye)
@@ -218,7 +226,8 @@ void depth_renderer_free(void *data)
 {
         struct depth_renderer *renderer = data;
 
-        glDeleteProgram(renderer->program);
+        if (renderer->program)
+                glDeleteProgram(renderer->program);
         free(renderer);
 }
 
@@ -226,6 +235,7 @@ void depth_renderer_free(void *data)
 const struct stereo_renderer depth_renderer = {
         .name = "depth",
         .new = depth_renderer_new,
+        .connect = depth_renderer_connect,
         .draw_frame = depth_renderer_draw_frame,
         .resize = depth_renderer_resize,
         .free = depth_renderer_free,
