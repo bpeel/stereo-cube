@@ -24,90 +24,20 @@ struct depth_renderer {
         GLuint color_location;
 };
 
-static GLuint create_shader(GLenum type, const char *source)
-{
-        GLuint shader = glCreateShader(type);
-        GLint length = strlen(source);
-        GLint status;
-
-        glShaderSource(shader, 1, &source, &length);
-        glCompileShader(shader);
-
-        glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-
-        if (status == 0) {
-                char info_log[512];
-                GLsizei info_log_length;
-
-                glGetShaderInfoLog(shader,
-                                    sizeof(info_log) - 1,
-                                    &info_log_length,
-                                    info_log);
-                fprintf(stderr, "%.*s\n", info_log_length, info_log);
-
-                glDeleteShader(shader);
-
-                return 0;
-        }
-
-        return shader;
-}
-
-static GLuint create_program(void)
-{
-        GLuint shader, program;
-        GLint status;
-        static const char vertex_source[] =
-                "attribute highp vec3 pos;\n"
-                "\n"
-                "void main()\n"
-                "{\n"
-                "        gl_Position = vec4(pos, 1.0);\n"
-                "}\n";
-        static const char fragment_source[] =
-                "uniform highp vec4 color;\n"
-                "\n"
-                "void main()\n"
-                "{\n"
-                "        gl_FragColor = color;\n"
-                "}\n";
-
-        program = glCreateProgram();
-
-        shader = create_shader(GL_VERTEX_SHADER, vertex_source);
-        if (shader) {
-                glAttachShader(program, shader);
-                glDeleteShader(shader);
-        }
-
-        shader = create_shader(GL_FRAGMENT_SHADER, fragment_source);
-        if (shader) {
-                glAttachShader(program, shader);
-                glDeleteShader(shader);
-        }
-
-        glBindAttribLocation(program, 0, "pos");
-
-        glLinkProgram(program);
-        glGetProgramiv(program, GL_LINK_STATUS, &status);
-
-        if (status == 0) {
-                char info_log[512];
-                GLsizei info_log_length;
-
-                glGetProgramInfoLog(program,
-                                    sizeof(info_log) - 1,
-                                    &info_log_length,
-                                    info_log);
-                fprintf(stderr, "%.*s\n", info_log_length, info_log);
-
-                glDeleteProgram(program);
-
-                return 0;
-        }
-
-        return program;
-}
+static const char depth_vertex_source[] =
+        "attribute highp vec3 pos;\n"
+        "\n"
+        "void main()\n"
+        "{\n"
+        "        gl_Position = vec4(pos, 1.0);\n"
+        "}\n";
+static const char depth_fragment_source[] =
+        "uniform highp vec4 color;\n"
+        "\n"
+        "void main()\n"
+        "{\n"
+        "        gl_FragColor = color;\n"
+        "}\n";
 
 void *depth_renderer_new(void)
 {
@@ -132,7 +62,10 @@ int depth_renderer_connect(void *data)
         renderer->draw_buffers_indexed =
                 (void *) eglGetProcAddress("glDrawBuffersIndexedEXT");
 
-        renderer->program = create_program();
+        renderer->program = create_program(depth_vertex_source,
+                                           depth_fragment_source,
+                                           "pos",
+                                           NULL);
 
         renderer->color_location =
                 glGetUniformLocation(renderer->program, "color");
