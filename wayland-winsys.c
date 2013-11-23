@@ -28,19 +28,19 @@ struct wayland_winsys {
         const struct stereo_winsys_callbacks *callbacks;
         void *cb_data;
 
-	struct wl_display *display;
-	struct wl_registry *registry;
-	struct wl_compositor *compositor;
-	struct wl_shell *shell;
+        struct wl_display *display;
+        struct wl_registry *registry;
+        struct wl_compositor *compositor;
+        struct wl_shell *shell;
 
         EGLDisplay edpy;
         EGLContext ctx;
         EGLConfig egl_config;
 
-	struct wl_egl_window *native_window;
-	struct wl_surface *surface;
-	struct wl_shell_surface *shell_surface;
-	EGLSurface egl_surface;
+        struct wl_egl_window *native_window;
+        struct wl_surface *surface;
+        struct wl_shell_surface *shell_surface;
+        EGLSurface egl_surface;
 
         struct wl_callback *frame_callback;
 
@@ -110,8 +110,8 @@ static void set_size(struct wayland_winsys *winsys,
         winsys->window_size.width = width;
         winsys->window_size.height = height;
 
-	if (winsys->native_window)
-		wl_egl_window_resize(winsys->native_window,
+        if (winsys->native_window)
+                wl_egl_window_resize(winsys->native_window,
                                      width, height,
                                      0, 0);
 
@@ -122,14 +122,14 @@ static void handle_ping(void *data,
                         struct wl_shell_surface *shell_surface,
                         uint32_t serial)
 {
-	wl_shell_surface_pong(shell_surface, serial);
+        wl_shell_surface_pong(shell_surface, serial);
 }
 
 static void handle_configure(void *data,
                              struct wl_shell_surface *shell_surface,
                              uint32_t edges, int32_t width, int32_t height)
 {
-	struct wayland_winsys *winsys = data;
+        struct wayland_winsys *winsys = data;
 
         set_size(winsys, width, height);
 }
@@ -140,9 +140,9 @@ handle_popup_done(void *data, struct wl_shell_surface *shell_surface)
 }
 
 static const struct wl_shell_surface_listener shell_surface_listener = {
-	handle_ping,
-	handle_configure,
-	handle_popup_done
+        handle_ping,
+        handle_configure,
+        handle_popup_done
 };
 
 static void
@@ -151,19 +151,19 @@ toggle_fullscreen(struct wayland_winsys *winsys, int fullscreen)
         if (!!fullscreen == winsys->fullscreen)
                 return;
 
-	winsys->fullscreen = !!fullscreen;
+        winsys->fullscreen = !!fullscreen;
 
-	if (fullscreen) {
+        if (fullscreen) {
                 const int method = WL_SHELL_SURFACE_FULLSCREEN_METHOD_DEFAULT;
                 winsys->old_size = winsys->window_size;
-		wl_shell_surface_set_fullscreen(winsys->shell_surface,
+                wl_shell_surface_set_fullscreen(winsys->shell_surface,
                                                 method, 0, NULL);
-	} else {
-		wl_shell_surface_set_toplevel(winsys->shell_surface);
+        } else {
+                wl_shell_surface_set_toplevel(winsys->shell_surface);
                 set_size(winsys,
                          winsys->old_size.width,
                          winsys->old_size.height);
-	}
+        }
 }
 
 static void keyboard_handle_keymap(void *data, struct wl_keyboard *keyboard,
@@ -186,10 +186,10 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *keyboard,
                                 uint32_t serial, uint32_t time, uint32_t key,
                                 uint32_t state)
 {
-	struct wayland_winsys *winsys = data;
+        struct wayland_winsys *winsys = data;
 
-	if (key == KEY_F11 && state)
-		toggle_fullscreen(winsys, !winsys->fullscreen);
+        if (key == KEY_F11 && state)
+                toggle_fullscreen(winsys, !winsys->fullscreen);
         else if ((key == KEY_Q || key == KEY_ESC) && state)
                 quit = 1;
 }
@@ -205,11 +205,11 @@ static void keyboard_handle_modifiers(void *data,
 }
 
 static const struct wl_keyboard_listener keyboard_listener = {
-	keyboard_handle_keymap,
-	keyboard_handle_enter,
-	keyboard_handle_leave,
-	keyboard_handle_key,
-	keyboard_handle_modifiers,
+        keyboard_handle_keymap,
+        keyboard_handle_enter,
+        keyboard_handle_leave,
+        keyboard_handle_key,
+        keyboard_handle_modifiers,
 };
 
 static void handle_capabilities(void *data,
@@ -256,18 +256,18 @@ static void registry_handle_global(void *data,
                                    const char *interface,
                                    uint32_t version)
 {
-	struct wayland_winsys *winsys = data;
+        struct wayland_winsys *winsys = data;
 
-	if (strcmp(interface, "wl_compositor") == 0 &&
+        if (strcmp(interface, "wl_compositor") == 0 &&
             winsys->compositor == NULL) {
-		winsys->compositor =
-			wl_registry_bind(registry, name,
-					 &wl_compositor_interface, 1);
-	} else if (strcmp(interface, "wl_shell") == 0 &&
+                winsys->compositor =
+                        wl_registry_bind(registry, name,
+                                         &wl_compositor_interface, 1);
+        } else if (strcmp(interface, "wl_shell") == 0 &&
                 winsys->shell == NULL) {
-		winsys->shell = wl_registry_bind(registry, name,
+                winsys->shell = wl_registry_bind(registry, name,
                                                  &wl_shell_interface, 1);
-	} else if (strcmp(interface, "wl_seat") == 0) {
+        } else if (strcmp(interface, "wl_seat") == 0) {
                 add_seat(winsys, name);
         }
 }
@@ -288,8 +288,8 @@ static void registry_handle_global_remove(void *data,
 }
 
 static const struct wl_registry_listener registry_listener = {
-	registry_handle_global,
-	registry_handle_global_remove
+        registry_handle_global,
+        registry_handle_global_remove
 };
 
 static void wayland_winsys_disconnect(struct wayland_winsys *winsys)
@@ -350,23 +350,23 @@ static void wayland_winsys_disconnect(struct wayland_winsys *winsys)
 
 static int init_egl(struct wayland_winsys *winsys)
 {
-	static const EGLint context_attribs[] = {
-		EGL_CONTEXT_CLIENT_VERSION, 2,
-		EGL_NONE
-	};
+        static const EGLint context_attribs[] = {
+                EGL_CONTEXT_CLIENT_VERSION, 2,
+                EGL_NONE
+        };
 
-	EGLint config_attribs[] = {
-		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-		EGL_RED_SIZE, 1,
-		EGL_GREEN_SIZE, 1,
-		EGL_BLUE_SIZE, 1,
+        EGLint config_attribs[] = {
+                EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+                EGL_RED_SIZE, 1,
+                EGL_GREEN_SIZE, 1,
+                EGL_BLUE_SIZE, 1,
                 EGL_DEPTH_SIZE, 1,
-		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-		EGL_NONE
-	};
+                EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+                EGL_NONE
+        };
 
-	EGLint major, minor, count;
-	EGLBoolean ret;
+        EGLint major, minor, count;
+        EGLBoolean ret;
 
         winsys->edpy = eglGetDisplay((EGLNativeDisplayType) winsys->display);
         if (winsys->edpy == NULL)
@@ -375,7 +375,7 @@ static int init_egl(struct wayland_winsys *winsys)
         if (!eglInitialize(winsys->edpy, &major, &minor))
                 return -1;
 
-	if (!eglBindAPI(EGL_OPENGL_ES_API))
+        if (!eglBindAPI(EGL_OPENGL_ES_API))
                 return -1;
 
         ret = eglChooseConfig(winsys->edpy,
@@ -385,7 +385,7 @@ static int init_egl(struct wayland_winsys *winsys)
         if (ret != EGL_TRUE || count < 1)
                 return -1;
 
-	winsys->ctx = eglCreateContext(winsys->edpy,
+        winsys->ctx = eglCreateContext(winsys->edpy,
                                        winsys->egl_config,
                                        EGL_NO_CONTEXT,
                                        context_attribs);
@@ -397,18 +397,18 @@ static int init_egl(struct wayland_winsys *winsys)
 
 static int create_surface(struct wayland_winsys *winsys)
 {
-	static const EGLint attribs_3d[] = {
-		EGL_MULTIVIEW_VIEW_COUNT_EXT, 2,
-		EGL_NONE
-	};
-	int has_multiview_view_count;
+        static const EGLint attribs_3d[] = {
+                EGL_MULTIVIEW_VIEW_COUNT_EXT, 2,
+                EGL_NONE
+        };
+        int has_multiview_view_count;
 
-	has_multiview_view_count =
-		extension_supported(winsys->edpy, "EGL_EXT_multiview_window");
+        has_multiview_view_count =
+                extension_supported(winsys->edpy, "EGL_EXT_multiview_window");
 
-	winsys->surface = wl_compositor_create_surface(winsys->compositor);
-	winsys->shell_surface = wl_shell_get_shell_surface(winsys->shell,
-							   winsys->surface);
+        winsys->surface = wl_compositor_create_surface(winsys->compositor);
+        winsys->shell_surface = wl_shell_get_shell_surface(winsys->shell,
+                                                           winsys->surface);
 
         wl_shell_surface_add_listener(winsys->shell_surface,
                                       &shell_surface_listener,
@@ -417,23 +417,23 @@ static int create_surface(struct wayland_winsys *winsys)
         winsys->window_size.width = 800;
         winsys->window_size.height = 600;
 
-	winsys->native_window =
-		wl_egl_window_create(winsys->surface,
+        winsys->native_window =
+                wl_egl_window_create(winsys->surface,
                                      winsys->window_size.width,
                                      winsys->window_size.height);
-	winsys->egl_surface =
-		eglCreateWindowSurface(winsys->edpy,
-				       winsys->egl_config,
-				       (EGLNativeWindowType)
+        winsys->egl_surface =
+                eglCreateWindowSurface(winsys->edpy,
+                                       winsys->egl_config,
+                                       (EGLNativeWindowType)
                                        winsys->native_window,
-				       has_multiview_view_count ?
-				       attribs_3d :
-				       NULL);
+                                       has_multiview_view_count ?
+                                       attribs_3d :
+                                       NULL);
 
-	wl_shell_surface_set_title(winsys->shell_surface, "stereo-cube");
+        wl_shell_surface_set_title(winsys->shell_surface, "stereo-cube");
         wl_shell_surface_set_toplevel(winsys->shell_surface);
 
-	if (!eglMakeCurrent(winsys->edpy,
+        if (!eglMakeCurrent(winsys->edpy,
                             winsys->egl_surface,
                             winsys->egl_surface,
                             winsys->ctx))
@@ -489,7 +489,7 @@ static void frame_cb(void *data, struct wl_callback *callback, uint32_t time)
 }
 
 static const struct wl_callback_listener frame_listener = {
-	frame_cb
+        frame_cb
 };
 
 static void redraw(struct wayland_winsys *winsys)

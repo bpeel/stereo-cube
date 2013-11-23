@@ -111,9 +111,9 @@ static GLfloat ProjectionMatrix[16];
 /** The direction of the directional light for the scene */
 static const GLfloat LightSourcePosition[4] = { 5.0, 5.0, 10.0, 1.0 };
 
-static GLfloat eyesep = 0.5;		/* Eye separation. */
-static GLfloat fix_point = 40.0;	/* Fixation point distance.  */
-static GLfloat left, right, asp;	/* Stereo frustum params.  */
+static GLfloat eyesep = 0.5;            /* Eye separation. */
+static GLfloat fix_point = 40.0;        /* Fixation point distance.  */
+static GLfloat left, right, asp;        /* Stereo frustum params.  */
 
 /**
  * Fills a gear vertex.
