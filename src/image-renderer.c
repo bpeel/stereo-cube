@@ -5,6 +5,8 @@
  * Dedicated to the Public Domain.
  */
 
+#include "config.h"
+
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
@@ -43,7 +45,7 @@ static const char image_fragment_source[] =
         "        gl_FragData[1] = texture2D(tex[1], tex_coord);\n"
         "}\n";
 
-void *
+static void *
 image_renderer_new(void)
 {
         struct image_renderer *renderer = xmalloc(sizeof *renderer);

@@ -5,6 +5,8 @@
  * Dedicated to the Public Domain.
  */
 
+#include "config.h"
+
 #include <stdlib.h>
 
 #include "stereo-winsys.h"

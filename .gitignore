@@ -1,3 +1,25 @@
-/stereo-cube
+/Makefile
+/Makefile.in
+/aclocal.m4
+/autom4te.cache
+/build/depcomp
+/build/install-sh
+/build/missing
+/build/config.guess
+/build/config.sub
+/config.h
+/config.h.in
+/config.log
+/config.status
+/configure
+/depcomp
+/install-sh
+/missing
+/stamp-h1
+
+/src/Makefile
+/src/Makefile.in
+/src/stereo-cube
 
 *.o
+.deps

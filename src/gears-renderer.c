@@ -36,10 +36,10 @@
  * Jul 13, 2010
  */
 
+#include "config.h"
+
 #define GL_GLEXT_PROTOTYPES
 #define EGL_EGLEXT_PROTOTYPES
-
-#define _GNU_SOURCE
 
 #include <math.h>
 #include <stdlib.h>
