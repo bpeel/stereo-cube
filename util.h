@@ -11,11 +11,14 @@
 #include <stddef.h>
 #include <GLES2/gl2.h>
 
-void *xmalloc(size_t size);
+void *
+xmalloc(size_t size);
 
-int extension_in_list(const char *ext, const char *exts);
-GLuint create_program(const char *vertex_source,
-                      const char *fragment_source,
-                      ...);
+int
+extension_in_list(const char *ext, const char *exts);
+GLuint
+create_program(const char *vertex_source,
+               const char *fragment_source,
+               ...);
 
 #endif /* UTIL_H */

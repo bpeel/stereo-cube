@@ -26,7 +26,8 @@ struct stereo_cube {
         int frame_num;
 };
 
-static void usage(void)
+static void
+usage(void)
 {
         int i;
 
@@ -60,7 +61,8 @@ static void usage(void)
         exit(0);
 }
 
-static void list_renderers(void)
+static void
+list_renderers(void)
 {
         int i;
 
@@ -72,7 +74,8 @@ static void list_renderers(void)
         exit(0);
 }
 
-static const struct stereo_renderer *select_renderer(const char *name)
+static const struct stereo_renderer *
+select_renderer(const char *name)
 {
         int i;
 
@@ -83,7 +86,8 @@ static const struct stereo_renderer *select_renderer(const char *name)
         return NULL;
 }
 
-static const struct stereo_winsys *select_winsys(const char *name)
+static const struct stereo_winsys *
+select_winsys(const char *name)
 {
         int i;
 
@@ -94,16 +98,18 @@ static const struct stereo_winsys *select_winsys(const char *name)
         return NULL;
 }
 
-static void update_size(void *data,
-                        int width,
-                        int height)
+static void
+update_size(void *data,
+            int width,
+            int height)
 {
         struct stereo_cube *cube = data;
 
         cube->renderer->resize(cube->renderer_data, width, height);
 }
 
-static void draw(void *data)
+static void
+draw(void *data)
 {
         struct stereo_cube *cube = data;
 
@@ -115,20 +121,23 @@ static struct stereo_winsys_callbacks winsys_callbacks = {
         .draw = draw,
 };
 
-static void create_winsys(struct stereo_cube *cube)
+static void
+create_winsys(struct stereo_cube *cube)
 {
         if (cube->winsys_data == NULL)
                 cube->winsys_data = cube->winsys->new(&winsys_callbacks, cube);
 }
 
-static void create_renderer(struct stereo_cube *cube)
+static void
+create_renderer(struct stereo_cube *cube)
 {
         if (cube->renderer_data == NULL)
                 cube->renderer_data =
                         cube->renderer->new();
 }
 
-static int process_options(struct stereo_cube *cube, int argc, char **argv)
+static int
+process_options(struct stereo_cube *cube, int argc, char **argv)
 {
         static const char default_args[] = "-hLr:w:";
         char args[256];
@@ -206,7 +215,8 @@ static int process_options(struct stereo_cube *cube, int argc, char **argv)
         return 0;
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
         int ret;
         struct stereo_cube cube;

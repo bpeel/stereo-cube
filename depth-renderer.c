@@ -39,7 +39,8 @@ static const char depth_fragment_source[] =
         "        gl_FragColor = color;\n"
         "}\n";
 
-void *depth_renderer_new(void)
+static void *
+depth_renderer_new(void)
 {
         struct depth_renderer *renderer = xmalloc(sizeof *renderer);
 
@@ -48,7 +49,8 @@ void *depth_renderer_new(void)
         return renderer;
 }
 
-int depth_renderer_connect(void *data)
+static int
+depth_renderer_connect(void *data)
 {
         struct depth_renderer *renderer = data;
         const char *exts = (const char *) glGetString(GL_EXTENSIONS);
@@ -73,7 +75,8 @@ int depth_renderer_connect(void *data)
         return 0;
 }
 
-static void set_eye(struct depth_renderer *renderer, int eye)
+static void
+set_eye(struct depth_renderer *renderer, int eye)
 {
         GLenum locations[] = { GL_MULTIVIEW_EXT };
         GLint indexes[] = { eye };
@@ -81,10 +84,11 @@ static void set_eye(struct depth_renderer *renderer, int eye)
         renderer->draw_buffers_indexed(1, locations, indexes);
 }
 
-static void draw_square(struct depth_renderer *renderer,
-                        float x, float y,
-                        uint32_t color,
-                        float depth)
+static void
+draw_square(struct depth_renderer *renderer,
+            float x, float y,
+            uint32_t color,
+            float depth)
 {
         float color_array[] = {
                 (color >> 24) / 255.0f,
@@ -111,8 +115,9 @@ static void draw_square(struct depth_renderer *renderer,
         glDisableVertexAttribArray(0);
 }
 
-void depth_renderer_draw_frame(void *data,
-                               int frame_num)
+static void
+depth_renderer_draw_frame(void *data,
+                          int frame_num)
 {
         struct depth_renderer *renderer = data;
         glUseProgram(renderer->program);
@@ -147,15 +152,17 @@ void depth_renderer_draw_frame(void *data,
         draw_square(renderer, -0.5f, -0.5f, 0x0000ffff, 0.6f);
 }
 
-void depth_renderer_resize(void *data,
-                           int width, int height)
+static void
+depth_renderer_resize(void *data,
+                      int width, int height)
 {
         struct depth_renderer *renderer = data;
         renderer->width = width;
         renderer->height = height;
 }
 
-void depth_renderer_free(void *data)
+static void
+depth_renderer_free(void *data)
 {
         struct depth_renderer *renderer = data;
 
@@ -163,7 +170,6 @@ void depth_renderer_free(void *data)
                 glDeleteProgram(renderer->program);
         free(renderer);
 }
-
 
 const struct stereo_renderer depth_renderer = {
         .name = "depth",

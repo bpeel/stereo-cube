@@ -65,15 +65,17 @@ static int quit = 0;
 
 static void redraw(struct wayland_winsys *winsys);
 
-static int extension_supported(EGLDisplay edpy, const char *ext)
+static int
+extension_supported(EGLDisplay edpy, const char *ext)
 {
         const char *exts = eglQueryString(edpy, EGL_EXTENSIONS);
 
         return extension_in_list(ext, exts);
 }
 
-static void *wayland_winsys_new(const struct stereo_winsys_callbacks *callbacks,
-                                void *cb_data)
+static void *
+wayland_winsys_new(const struct stereo_winsys_callbacks *callbacks,
+                   void *cb_data)
 {
         struct wayland_winsys *winsys = xmalloc(sizeof *winsys);
 
@@ -87,7 +89,8 @@ static void *wayland_winsys_new(const struct stereo_winsys_callbacks *callbacks,
         return winsys;
 }
 
-static void remove_seat(struct seat *seat)
+static void
+remove_seat(struct seat *seat)
 {
         if (seat->keyboard)
                 wl_keyboard_destroy(seat->keyboard);
@@ -96,16 +99,18 @@ static void remove_seat(struct seat *seat)
         free(seat);
 }
 
-static void update_size(struct wayland_winsys *winsys)
+static void
+update_size(struct wayland_winsys *winsys)
 {
         winsys->callbacks->update_size(winsys->cb_data,
                                        winsys->window_size.width,
                                        winsys->window_size.height);
 }
 
-static void set_size(struct wayland_winsys *winsys,
-                     int width,
-                     int height)
+static void
+set_size(struct wayland_winsys *winsys,
+         int width,
+         int height)
 {
         winsys->window_size.width = width;
         winsys->window_size.height = height;
@@ -118,16 +123,18 @@ static void set_size(struct wayland_winsys *winsys,
         update_size(winsys);
 }
 
-static void handle_ping(void *data,
-                        struct wl_shell_surface *shell_surface,
-                        uint32_t serial)
+static void
+handle_ping(void *data,
+            struct wl_shell_surface *shell_surface,
+            uint32_t serial)
 {
         wl_shell_surface_pong(shell_surface, serial);
 }
 
-static void handle_configure(void *data,
-                             struct wl_shell_surface *shell_surface,
-                             uint32_t edges, int32_t width, int32_t height)
+static void
+handle_configure(void *data,
+                 struct wl_shell_surface *shell_surface,
+                 uint32_t edges, int32_t width, int32_t height)
 {
         struct wayland_winsys *winsys = data;
 
@@ -166,25 +173,29 @@ toggle_fullscreen(struct wayland_winsys *winsys, int fullscreen)
         }
 }
 
-static void keyboard_handle_keymap(void *data, struct wl_keyboard *keyboard,
-                                   uint32_t format, int fd, uint32_t size)
+static void
+keyboard_handle_keymap(void *data, struct wl_keyboard *keyboard,
+                       uint32_t format, int fd, uint32_t size)
 {
 }
 
-static void keyboard_handle_enter(void *data, struct wl_keyboard *keyboard,
-                                  uint32_t serial, struct wl_surface *surface,
-                                  struct wl_array *keys)
+static void
+keyboard_handle_enter(void *data, struct wl_keyboard *keyboard,
+                      uint32_t serial, struct wl_surface *surface,
+                      struct wl_array *keys)
 {
 }
 
-static void keyboard_handle_leave(void *data, struct wl_keyboard *keyboard,
-                                  uint32_t serial, struct wl_surface *surface)
+static void
+keyboard_handle_leave(void *data, struct wl_keyboard *keyboard,
+                      uint32_t serial, struct wl_surface *surface)
 {
 }
 
-static void keyboard_handle_key(void *data, struct wl_keyboard *keyboard,
-                                uint32_t serial, uint32_t time, uint32_t key,
-                                uint32_t state)
+static void
+keyboard_handle_key(void *data, struct wl_keyboard *keyboard,
+                    uint32_t serial, uint32_t time, uint32_t key,
+                    uint32_t state)
 {
         struct wayland_winsys *winsys = data;
 
@@ -194,13 +205,14 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *keyboard,
                 quit = 1;
 }
 
-static void keyboard_handle_modifiers(void *data,
-                                      struct wl_keyboard *keyboard,
-                                      uint32_t serial,
-                                      uint32_t mods_depressed,
-                                      uint32_t mods_latched,
-                                      uint32_t mods_locked,
-                                      uint32_t group)
+static void
+keyboard_handle_modifiers(void *data,
+                          struct wl_keyboard *keyboard,
+                          uint32_t serial,
+                          uint32_t mods_depressed,
+                          uint32_t mods_latched,
+                          uint32_t mods_locked,
+                          uint32_t group)
 {
 }
 
@@ -212,9 +224,10 @@ static const struct wl_keyboard_listener keyboard_listener = {
         keyboard_handle_modifiers,
 };
 
-static void handle_capabilities(void *data,
-                                struct wl_seat *wl_seat,
-                                uint32_t capabilities)
+static void
+handle_capabilities(void *data,
+                    struct wl_seat *wl_seat,
+                    uint32_t capabilities)
 {
         struct seat *seat = data;
 
@@ -235,8 +248,9 @@ static const struct wl_seat_listener seat_listener = {
         handle_capabilities
 };
 
-static void add_seat(struct wayland_winsys *winsys,
-                     uint32_t name)
+static void
+add_seat(struct wayland_winsys *winsys,
+         uint32_t name)
 {
         struct seat *seat = xmalloc(sizeof *seat);
 
@@ -250,11 +264,12 @@ static void add_seat(struct wayland_winsys *winsys,
         wl_seat_add_listener(seat->seat, &seat_listener, seat);
 }
 
-static void registry_handle_global(void *data,
-                                   struct wl_registry *registry,
-                                   uint32_t name,
-                                   const char *interface,
-                                   uint32_t version)
+static void
+registry_handle_global(void *data,
+                       struct wl_registry *registry,
+                       uint32_t name,
+                       const char *interface,
+                       uint32_t version)
 {
         struct wayland_winsys *winsys = data;
 
@@ -272,9 +287,10 @@ static void registry_handle_global(void *data,
         }
 }
 
-static void registry_handle_global_remove(void *data,
-                                          struct wl_registry *registry,
-                                          uint32_t name)
+static void
+registry_handle_global_remove(void *data,
+                              struct wl_registry *registry,
+                              uint32_t name)
 {
         struct wayland_winsys *winsys = data;
         struct seat *seat;
@@ -292,7 +308,8 @@ static const struct wl_registry_listener registry_listener = {
         registry_handle_global_remove
 };
 
-static void wayland_winsys_disconnect(struct wayland_winsys *winsys)
+static void
+wayland_winsys_disconnect(struct wayland_winsys *winsys)
 {
         struct seat *seat, *tmp;
 
@@ -348,7 +365,8 @@ static void wayland_winsys_disconnect(struct wayland_winsys *winsys)
         }
 }
 
-static int init_egl(struct wayland_winsys *winsys)
+static int
+init_egl(struct wayland_winsys *winsys)
 {
         static const EGLint context_attribs[] = {
                 EGL_CONTEXT_CLIENT_VERSION, 2,
@@ -395,7 +413,8 @@ static int init_egl(struct wayland_winsys *winsys)
         return 0;
 }
 
-static int create_surface(struct wayland_winsys *winsys)
+static int
+create_surface(struct wayland_winsys *winsys)
 {
         static const EGLint attribs_3d[] = {
                 EGL_MULTIVIEW_VIEW_COUNT_EXT, 2,
@@ -442,7 +461,8 @@ static int create_surface(struct wayland_winsys *winsys)
         return 0;
 }
 
-static int wayland_winsys_connect(void *data)
+static int
+wayland_winsys_connect(void *data)
 {
         struct wayland_winsys *winsys = data;
 
@@ -472,12 +492,14 @@ error:
         return -1;
 }
 
-static void sigint_handler(int sig)
+static void
+sigint_handler(int sig)
 {
         quit = 1;
 }
 
-static void frame_cb(void *data, struct wl_callback *callback, uint32_t time)
+static void
+frame_cb(void *data, struct wl_callback *callback, uint32_t time)
 {
         struct wayland_winsys *winsys = data;
 
@@ -492,7 +514,8 @@ static const struct wl_callback_listener frame_listener = {
         frame_cb
 };
 
-static void redraw(struct wayland_winsys *winsys)
+static void
+redraw(struct wayland_winsys *winsys)
 {
         winsys->callbacks->draw(winsys->cb_data);
 
@@ -504,7 +527,8 @@ static void redraw(struct wayland_winsys *winsys)
         eglSwapBuffers(winsys->edpy, winsys->egl_surface);
 }
 
-static void wayland_winsys_main_loop(void *data)
+static void
+wayland_winsys_main_loop(void *data)
 {
         struct wayland_winsys *winsys = data;
         struct sigaction action = {
@@ -527,7 +551,8 @@ static void wayland_winsys_main_loop(void *data)
         sigaction(SIGINT, &old_action, NULL);
 }
 
-static void wayland_winsys_free(void *data)
+static void
+wayland_winsys_free(void *data)
 {
         struct wayland_winsys *winsys = data;
 

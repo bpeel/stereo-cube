@@ -75,8 +75,9 @@ static int quit = 0;
 
 #define MULTIVIEW_WINDOW_EXTENSION "EGL_EXT_multiview_window"
 
-static int stereo_find_crtc(drmModeRes *res, drmModeConnector *conn,
-                            struct gbm_dev *dev)
+static int
+stereo_find_crtc(drmModeRes *res, drmModeConnector *conn,
+                 struct gbm_dev *dev)
 {
         drmModeEncoder *enc;
         unsigned int i, j;
@@ -129,7 +130,8 @@ static int stereo_find_crtc(drmModeRes *res, drmModeConnector *conn,
         return -ENOENT;
 }
 
-static int get_mode_rank(const drmModeModeInfo *mode)
+static int
+get_mode_rank(const drmModeModeInfo *mode)
 {
         int layout;
         int i;
@@ -155,9 +157,10 @@ static int get_mode_rank(const drmModeModeInfo *mode)
         return -1;
 }
 
-static int is_chosen_mode(const drmModeModeInfo *mode,
-                          const struct gbm_options *options,
-                          const drmModeModeInfo *old_mode)
+static int
+is_chosen_mode(const drmModeModeInfo *mode,
+               const struct gbm_options *options,
+               const drmModeModeInfo *old_mode)
 {
         switch ((mode->flags & DRM_MODE_FLAG_3D_MASK)) {
         case DRM_MODE_FLAG_3D_NONE:
@@ -189,8 +192,9 @@ static int is_chosen_mode(const drmModeModeInfo *mode,
         }
 }
 
-static int find_mode(struct gbm_dev *dev, drmModeConnector *conn,
-                     const struct gbm_options *options)
+static int
+find_mode(struct gbm_dev *dev, drmModeConnector *conn,
+          const struct gbm_options *options)
 {
         const drmModeModeInfo *old_mode = NULL;
         int i;
@@ -205,7 +209,8 @@ static int find_mode(struct gbm_dev *dev, drmModeConnector *conn,
         return old_mode ? 0 : -ENOENT;
 }
 
-static const char *get_stereo_mode_name(int stereo_flags)
+static const char *
+get_stereo_mode_name(int stereo_flags)
 {
         switch (stereo_flags) {
         case DRM_MODE_FLAG_3D_NONE:
@@ -231,9 +236,10 @@ static const char *get_stereo_mode_name(int stereo_flags)
         }
 }
 
-static int stereo_setup_dev(drmModeRes *res, drmModeConnector *conn,
-                            const struct gbm_options *options,
-                            struct gbm_dev *dev)
+static int
+stereo_setup_dev(drmModeRes *res, drmModeConnector *conn,
+                 const struct gbm_options *options,
+                 struct gbm_dev *dev)
 {
         int ret;
 
@@ -270,7 +276,8 @@ static int stereo_setup_dev(drmModeRes *res, drmModeConnector *conn,
         return 0;
 }
 
-static int stereo_open(int *out, const struct gbm_options *options)
+static int
+stereo_open(int *out, const struct gbm_options *options)
 {
         const char *card = options->card;
         int fd, ret;
@@ -295,8 +302,9 @@ static int stereo_open(int *out, const struct gbm_options *options)
         return 0;
 }
 
-static drmModeConnector *get_connector(int fd, drmModeRes *res,
-                                       const struct gbm_options *options)
+static drmModeConnector *
+get_connector(int fd, drmModeRes *res,
+              const struct gbm_options *options)
 {
         drmModeConnector *conn;
         int i;
@@ -325,8 +333,8 @@ static drmModeConnector *get_connector(int fd, drmModeRes *res,
         return NULL;
 }
 
-static struct gbm_dev *stereo_prepare_dev(int fd,
-                                          const struct gbm_options *options)
+static struct gbm_dev *
+stereo_prepare_dev(int fd, const struct gbm_options *options)
 {
         drmModeRes *res;
         drmModeConnector *conn;
@@ -378,7 +386,8 @@ error:
         return NULL;
 }
 
-static void restore_saved_crtc(struct gbm_dev *dev)
+static void
+restore_saved_crtc(struct gbm_dev *dev)
 {
         /* restore saved CRTC configuration */
         if (dev->saved_crtc) {
@@ -396,7 +405,8 @@ static void restore_saved_crtc(struct gbm_dev *dev)
         }
 }
 
-static void stereo_cleanup_dev(struct gbm_dev *dev)
+static void
+stereo_cleanup_dev(struct gbm_dev *dev)
 {
         restore_saved_crtc(dev);
 
@@ -404,7 +414,8 @@ static void stereo_cleanup_dev(struct gbm_dev *dev)
         free(dev);
 }
 
-static void free_current_bo(struct gbm_context *context)
+static void
+free_current_bo(struct gbm_context *context)
 {
         if (context->current_fb_id) {
                 drmModeRmFB(context->dev->fd, context->current_fb_id);
@@ -417,7 +428,8 @@ static void free_current_bo(struct gbm_context *context)
         }
 }
 
-static int create_gbm_surface(struct gbm_context *context)
+static int
+create_gbm_surface(struct gbm_context *context)
 {
         const uint32_t flags = GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING;
         const drmModeModeInfo *drm_mode = &context->dev->mode;
@@ -470,7 +482,8 @@ static int create_gbm_surface(struct gbm_context *context)
         return 0;
 }
 
-static int choose_egl_config(struct gbm_context *context)
+static int
+choose_egl_config(struct gbm_context *context)
 {
         static const EGLint attribs[] = {
                 EGL_RED_SIZE, 1,
@@ -498,8 +511,9 @@ static int choose_egl_config(struct gbm_context *context)
         return 0;
 }
 
-static int create_egl_surface(struct gbm_context *context,
-                              const struct gbm_options *options)
+static int
+create_egl_surface(struct gbm_context *context,
+                   const struct gbm_options *options)
 {
         static const EGLint attribs_3d[] = {
                 EGL_MULTIVIEW_VIEW_COUNT_EXT, 2,
@@ -518,7 +532,8 @@ static int create_egl_surface(struct gbm_context *context,
         return 0;
 }
 
-static int create_egl_context(struct gbm_context *context)
+static int
+create_egl_context(struct gbm_context *context)
 {
         static const EGLint attribs[] = {
                 EGL_CONTEXT_CLIENT_VERSION, 2,
@@ -537,7 +552,8 @@ static int create_egl_context(struct gbm_context *context)
         return 0;
 }
 
-static int extension_supported(EGLDisplay edpy, const char *ext)
+static int
+extension_supported(EGLDisplay edpy, const char *ext)
 {
         const char *exts = eglQueryString(edpy, EGL_EXTENSIONS);
 
@@ -629,7 +645,8 @@ error:
         return NULL;
 }
 
-static void stereo_cleanup_context(struct gbm_context *context)
+static void
+stereo_cleanup_context(struct gbm_context *context)
 {
         restore_saved_crtc(context->dev);
         free_current_bo(context);
@@ -657,7 +674,8 @@ page_flip_handler(int fd,
         dev->pending_swap = 0;
 }
 
-static void wait_swap(struct gbm_dev *dev)
+static void
+wait_swap(struct gbm_dev *dev)
 {
         drmEventContext evctx;
 
@@ -669,7 +687,8 @@ static void wait_swap(struct gbm_dev *dev)
         }
 }
 
-static int set_initial_crtc(struct gbm_dev *dev, uint32_t fb_id)
+static int
+set_initial_crtc(struct gbm_dev *dev, uint32_t fb_id)
 {
         dev->saved_crtc = drmModeGetCrtc(dev->fd, dev->crtc);
 
@@ -686,7 +705,8 @@ static int set_initial_crtc(struct gbm_dev *dev, uint32_t fb_id)
         return 0;
 }
 
-static void swap(struct gbm_winsys *winsys)
+static void
+swap(struct gbm_winsys *winsys)
 {
         struct gbm_dev *dev = winsys->dev;
         struct gbm_context *context = winsys->context;
@@ -736,8 +756,9 @@ static void swap(struct gbm_winsys *winsys)
         }
 }
 
-static void *gbm_winsys_new(const struct stereo_winsys_callbacks *callbacks,
-                            void *cb_data)
+static void *
+gbm_winsys_new(const struct stereo_winsys_callbacks *callbacks,
+               void *cb_data)
 {
         struct gbm_winsys *winsys = xmalloc(sizeof *winsys);
 
@@ -751,7 +772,8 @@ static void *gbm_winsys_new(const struct stereo_winsys_callbacks *callbacks,
         return winsys;
 }
 
-static int gbm_winsys_handle_option(void *data, int opt)
+static int
+gbm_winsys_handle_option(void *data, int opt)
 {
         struct gbm_winsys *winsys = data;
         struct gbm_options *options = &winsys->options;
@@ -771,7 +793,8 @@ static int gbm_winsys_handle_option(void *data, int opt)
         return 0;
 }
 
-static void gbm_winsys_disconnect(struct gbm_winsys *winsys)
+static void
+gbm_winsys_disconnect(struct gbm_winsys *winsys)
 {
         if (winsys->context) {
                 stereo_cleanup_context(winsys->context);
@@ -787,7 +810,8 @@ static void gbm_winsys_disconnect(struct gbm_winsys *winsys)
         }
 }
 
-static int gbm_winsys_connect(void *data)
+static int
+gbm_winsys_connect(void *data)
 {
         struct gbm_winsys *winsys = data;
         int ret;
@@ -817,12 +841,14 @@ error:
         return ret;
 }
 
-static void sigint_handler(int sig)
+static void
+sigint_handler(int sig)
 {
         quit = 1;
 }
 
-static void update_size(struct gbm_winsys *winsys)
+static void
+update_size(struct gbm_winsys *winsys)
 {
         struct gbm_context *context = winsys->context;
         EGLint width, height;
@@ -834,7 +860,8 @@ static void update_size(struct gbm_winsys *winsys)
         winsys->callbacks->update_size(winsys->cb_data, width, height);
 }
 
-static void gbm_winsys_main_loop(void *data)
+static void
+gbm_winsys_main_loop(void *data)
 {
         struct gbm_winsys *winsys = data;
         struct sigaction action = {
@@ -855,7 +882,8 @@ static void gbm_winsys_main_loop(void *data)
         sigaction(SIGINT, &old_action, NULL);
 }
 
-static void gbm_winsys_free(void *data)
+static void
+gbm_winsys_free(void *data)
 {
         struct gbm_winsys *winsys = data;
 

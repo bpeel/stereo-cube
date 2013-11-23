@@ -126,8 +126,10 @@ static GLfloat left, right, asp;        /* Stereo frustum params.  */
  *
  * @return the operation error code
  */
-static GearVertex *vert(GearVertex * v, GLfloat x, GLfloat y, GLfloat z,
-                        GLfloat n[3])
+static GearVertex *
+vert(GearVertex * v,
+     GLfloat x, GLfloat y, GLfloat z,
+     GLfloat n[3])
 {
         v[0][0] = x;
         v[0][1] = y;
@@ -150,8 +152,9 @@ static GearVertex *vert(GearVertex * v, GLfloat x, GLfloat y, GLfloat z,
  *
  *  @return pointer to the constructed struct gear
  */
-static struct gear *create_gear(GLfloat inner_radius, GLfloat outer_radius,
-                                GLfloat width, GLint teeth, GLfloat tooth_depth)
+static struct gear *
+create_gear(GLfloat inner_radius, GLfloat outer_radius,
+            GLfloat width, GLint teeth, GLfloat tooth_depth)
 {
         GLfloat r0, r1, r2;
         GLfloat da;
@@ -303,7 +306,8 @@ static struct gear *create_gear(GLfloat inner_radius, GLfloat outer_radius,
  * @param m the first matrix to multiply
  * @param n the second matrix to multiply
  */
-static void multiply(GLfloat * m, const GLfloat * n)
+static void
+multiply(GLfloat * m, const GLfloat * n)
 {
         GLfloat tmp[16];
         const GLfloat *row, *column;
@@ -330,7 +334,8 @@ static void multiply(GLfloat * m, const GLfloat * n)
  * @param y the y component of the direction to rotate to
  * @param z the z component of the direction to rotate to
  */
-static void rotate(GLfloat * m, GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
+static void
+rotate(GLfloat * m, GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
 {
         double s, c;
 
@@ -356,7 +361,8 @@ static void rotate(GLfloat * m, GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
  * @param y the y component of the direction to translate to
  * @param z the z component of the direction to translate to
  */
-static void translate(GLfloat * m, GLfloat x, GLfloat y, GLfloat z)
+static void
+translate(GLfloat * m, GLfloat x, GLfloat y, GLfloat z)
 {
         GLfloat t[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1 };
 
@@ -368,7 +374,8 @@ static void translate(GLfloat * m, GLfloat x, GLfloat y, GLfloat z)
  *
  * @param m the matrix make an identity matrix
  */
-static void identity(GLfloat * m)
+static void
+identity(GLfloat * m)
 {
         GLfloat t[16] = {
                 1.0, 0.0, 0.0, 0.0,
@@ -385,7 +392,8 @@ static void identity(GLfloat * m)
  *
  * @param m the matrix to transpose
  */
-static void transpose(GLfloat * m)
+static void
+transpose(GLfloat * m)
 {
         GLfloat t[16] = {
                 m[0], m[4], m[8], m[12],
@@ -404,7 +412,8 @@ static void transpose(GLfloat * m)
  * Read http://www.gamedev.net/community/forums/topic.asp?topic_id=425118
  * for an explanation.
  */
-static void invert(GLfloat * m)
+static void
+invert(GLfloat * m)
 {
         GLfloat t[16];
         identity(t);
@@ -425,7 +434,8 @@ static void invert(GLfloat * m)
         multiply(m, t);
 }
 
-void frustum(GLfloat *m,
+static void
+frustum(GLfloat *m,
              float left,
              float right,
              float bottom,
@@ -520,7 +530,8 @@ draw_gear(struct gear *gear, GLfloat * transform,
 /**
  * Draws the gears.
  */
-static void gears_draw(const GLfloat *view_matrix)
+static void
+gears_draw(const GLfloat *view_matrix)
 {
         const static GLfloat red[4] = { 0.8, 0.1, 0.0, 1.0 };
         const static GLfloat green[4] = { 0.0, 0.8, 0.2, 1.0 };
@@ -544,7 +555,8 @@ static void gears_draw(const GLfloat *view_matrix)
         draw_gear(gear3, transform, -3.1, 4.2, -2 * angle - 25.0, blue);
 }
 
-static void set_eye(struct gears_renderer *renderer, int eye)
+static void
+set_eye(struct gears_renderer *renderer, int eye)
 {
         GLenum locations[] = { GL_MULTIVIEW_EXT };
         GLint indexes[] = { eye };
@@ -552,7 +564,8 @@ static void set_eye(struct gears_renderer *renderer, int eye)
         renderer->draw_buffers_indexed(1, locations, indexes);
 }
 
-static void redraw(struct gears_renderer *renderer)
+static void
+redraw(struct gears_renderer *renderer)
 {
         GLfloat view_matrix[16];
 
@@ -581,7 +594,8 @@ static void redraw(struct gears_renderer *renderer)
  * @param width the window width
  * @param height the window height
  */
-static void gears_reshape(int width, int height)
+static void
+gears_reshape(int width, int height)
 {
         GLfloat w;
 
@@ -595,7 +609,8 @@ static void gears_reshape(int width, int height)
         glViewport(0, 0, (GLint) width, (GLint) height);
 }
 
-static int get_elapsed_time(void)
+static int
+get_elapsed_time(void)
 {
         static int start_time = 0;
         int now;
@@ -613,7 +628,8 @@ static int get_elapsed_time(void)
         }
 }
 
-static void gears_idle(void)
+static void
+gears_idle(void)
 {
         static int frames = 0;
         static double tRot0 = -1.0, tRate0 = -1.0;
@@ -684,7 +700,8 @@ static const char fragment_shader[] =
         "    gl_FragColor = Color;\n"
         "}";
 
-static void gears_init(void)
+static void
+gears_init(void)
 {
         GLuint v, f, program;
         const char *p;
@@ -741,12 +758,14 @@ static void gears_init(void)
         gear3 = create_gear(1.3, 2.0, 0.5, 10, 0.7);
 }
 
-static void *gears_renderer_new(void)
+static void *
+gears_renderer_new(void)
 {
         return xmalloc(sizeof (struct gears_renderer));
 }
 
-static int gears_renderer_connect(void *data)
+static int
+gears_renderer_connect(void *data)
 {
         struct gears_renderer *renderer = data;
         const char *exts = (const char *)glGetString(GL_EXTENSIONS);
@@ -765,8 +784,9 @@ static int gears_renderer_connect(void *data)
         return 0;
 }
 
-static void gears_renderer_draw_frame(void *data,
-                                      int frame_num)
+static void
+gears_renderer_draw_frame(void *data,
+                          int frame_num)
 {
         struct gears_renderer *renderer = data;
 
@@ -774,13 +794,15 @@ static void gears_renderer_draw_frame(void *data,
         redraw(renderer);
 }
 
-static void gears_renderer_resize(void *data,
-                                  int width, int height)
+static void
+gears_renderer_resize(void *data,
+                      int width, int height)
 {
         gears_reshape(width, height);
 }
 
-static void gears_renderer_free(void *data)
+static void
+gears_renderer_free(void *data)
 {
         struct gears_renderer *renderer = data;
 

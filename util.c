@@ -12,7 +12,8 @@
 
 #include "util.h"
 
-void *xmalloc(size_t size)
+void *
+xmalloc(size_t size)
 {
         void *res = malloc(size);
 
@@ -22,7 +23,8 @@ void *xmalloc(size_t size)
         abort();
 }
 
-int extension_in_list(const char *ext, const char *exts)
+int
+extension_in_list(const char *ext, const char *exts)
 {
         int ext_len = strlen(ext);
 
@@ -47,7 +49,8 @@ int extension_in_list(const char *ext, const char *exts)
         }
 }
 
-static GLuint create_shader(GLenum type, const char *source)
+static GLuint
+create_shader(GLenum type, const char *source)
 {
         GLuint shader = glCreateShader(type);
         GLint length = strlen(source);
@@ -76,9 +79,10 @@ static GLuint create_shader(GLenum type, const char *source)
         return shader;
 }
 
-GLuint create_program(const char *vertex_source,
-                      const char *fragment_source,
-                      ...)
+GLuint
+create_program(const char *vertex_source,
+               const char *fragment_source,
+               ...)
 {
         GLuint shader, program;
         GLint status;

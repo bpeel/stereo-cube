@@ -43,7 +43,8 @@ static const char image_fragment_source[] =
         "        gl_FragData[1] = texture2D(tex[1], tex_coord);\n"
         "}\n";
 
-void *image_renderer_new(void)
+void *
+image_renderer_new(void)
 {
         struct image_renderer *renderer = xmalloc(sizeof *renderer);
 
@@ -52,7 +53,8 @@ void *image_renderer_new(void)
         return renderer;
 }
 
-static int next_p2 (int a)
+static int
+next_p2 (int a)
 {
         int rval = 1;
 
@@ -62,7 +64,8 @@ static int next_p2 (int a)
         return rval;
 }
 
-static GLuint load_texture(const char *image_name, GError **error)
+static GLuint
+load_texture(const char *image_name, GError **error)
 {
         GdkPixbuf *pixbuf;
         int width, height, p2_width, p2_height;
@@ -121,7 +124,8 @@ static GLuint load_texture(const char *image_name, GError **error)
         return tex;
 }
 
-int image_renderer_connect(void *data)
+static int
+image_renderer_connect(void *data)
 {
         struct image_renderer *renderer = data;
         const char *exts = (const char *) glGetString(GL_EXTENSIONS);
@@ -182,7 +186,8 @@ int image_renderer_connect(void *data)
         return 0;
 }
 
-void image_renderer_draw_frame(void *data, int frame_num)
+static void
+image_renderer_draw_frame(void *data, int frame_num)
 {
         static const float vertices[] = {
                 0.0f, 0.0f,
@@ -202,13 +207,15 @@ void image_renderer_draw_frame(void *data, int frame_num)
         glDisableVertexAttribArray(0);
 }
 
-void image_renderer_resize(void *data,
-                           int width, int height)
+static void
+image_renderer_resize(void *data,
+                      int width, int height)
 {
         glViewport(0, 0, width, height);
 }
 
-static int image_renderer_handle_option(void *data, int opt)
+static int
+image_renderer_handle_option(void *data, int opt)
 {
         struct image_renderer *renderer = data;
 
@@ -224,7 +231,8 @@ static int image_renderer_handle_option(void *data, int opt)
         return 0;
 }
 
-void image_renderer_free(void *data)
+static void
+image_renderer_free(void *data)
 {
         struct image_renderer *renderer = data;
         int i;
@@ -238,7 +246,6 @@ void image_renderer_free(void *data)
 
         free(renderer);
 }
-
 
 const struct stereo_renderer image_renderer = {
         .name = "image",
